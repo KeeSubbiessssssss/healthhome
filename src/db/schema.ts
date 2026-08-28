@@ -100,6 +100,16 @@ export const dexcomConnections = pgTable("dexcom_connections", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("dexcom_connections_status_idx").on(table.status)]);
 
+export const dexcomOAuthCredentials = pgTable("dexcom_oauth_credentials", {
+  connectionId: uuid("connection_id").primaryKey().references(() => dexcomConnections.id, { onDelete: "cascade" }),
+  accessTokenCiphertext: text("access_token_ciphertext").notNull(),
+  refreshTokenCiphertext: text("refresh_token_ciphertext").notNull(),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }).notNull(),
+  scopes: text("scopes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const glucoseReadings = pgTable("glucose_readings", {
   id: uuid("id").defaultRandom().primaryKey(),
   connectionId: uuid("connection_id").notNull().references(() => dexcomConnections.id, { onDelete: "cascade" }),
