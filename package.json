@@ -4,9 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack",
+    "build": "npm run db:check && npm run db:migrate:deploy && next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "drizzle-kit generate",
+    "db:check": "drizzle-kit check",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:migrate:deploy": "node scripts/migrate.mjs --vercel-deployment"
   },
   "dependencies": {
     "@neon/config": "^1.0.5",
@@ -19,6 +23,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@next/env": "^16.3.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
