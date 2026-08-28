@@ -1,35 +1,17 @@
 import { desc, eq } from "drizzle-orm";
 
-import { addDemoMedication } from "@/app/data-lab/actions";
+import { addMedication, logDose } from "@/app/data-lab/actions";
 import { db } from "@/lib/db";
-import { inventoryEvents, medicationStock, medications } from "@/db/schema";
+import { inventoryEvents, medicationStock, medications, prescriptions } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
-
-function formatQuantity(value: number) {
-  return value.toFixed(2).replace(/\\.00$/, "");
-}
+function formatQuantity(value: number) { return value.toFixed(2).replace(/\\.00$/, ""); }
 
 export default async function DataLabPage() {
-  if (process.env.VERCEL_ENV === "production") {
-    return <main className="data-lab-shell"><p className="eyebrow">HealthHome</p><h1>Data lab is available in Preview.</h1><p>Production never accepts synthetic test data.</p></main>;
-  }
-
-  const stocks = await db.select({ stockId: medicationStock.id, medicationName: medications.name, unit: medicationStock.unit, openingQuantity: medicationStock.openingQuantity, reorderAtQuantity: medicationStock.reorderAtQuantity, targetQuantity: medicationStock.targetQuantity }).from(medicationStock).innerJoin(medications, eq(medicationStock.medicationId, medications.id)).orderBy(desc(medications.createdAt));
+  if (process.env.VERCEL_ENV === "production") return <main className="data-lab-shell"><p className="eyebrow">HealthHome</p><h1>Data lab is available in Preview.</h1><p>Production never accepts synthetic test data.</p></main>;
+  const stocks = await db.select({ stockId: medicationStock.id, medicationId: medications.id, medicationName: medications.name, unit: medicationStock.unit, openingQuantity: medicationStock.openingQuantity, reorderAtQuantity: medicationStock.reorderAtQuantity, targetQuantity: medicationStock.targetQuantity }).from(medicationStock).innerJoin(medications, eq(medicationStock.medicationId, medications.id)).orderBy(desc(medications.createdAt));
   const events = await db.select({ stockId: inventoryEvents.stockId, quantityDelta: inventoryEvents.quantityDelta }).from(inventoryEvents);
-  const inventory = stocks.map((stock) => {
-    const eventDelta = events.filter((event) => event.stockId === stock.stockId).reduce((total, event) => total + Number(event.quantityDelta), 0);
-    const currentQuantity = Number(stock.openingQuantity) + eventDelta;
-    return { ...stock, currentQuantity, needsRefill: currentQuantity <= Number(stock.reorderAtQuantity) };
-  });
-
-  return (
-    <main className="data-lab-shell">
-      <p className="eyebrow">HealthHome · Preview only</p>
-      <h1>Medication inventory data lab</h1>
-      <p className="data-lab-intro">A simple safety check for the underlying ledger. Each receipt, dose, expiry, or adjustment changes stock through an event rather than overwriting a remaining total.</p>
-      <form action={addDemoMedication}><button type="submit">Add synthetic 56-tablet receipt</button></form>
-      {inventory.length === 0 ? <section className="data-lab-empty"><h2>No test stock yet</h2><p>Add a synthetic receipt to prove the preview database write and running-total calculation.</p></section> : <section className="data-lab-table-wrap" aria-label="Medication inventory"><table><thead><tr><th scope="col">Medication</th><th scope="col">Current</th><th scope="col">Refill at</th><th scope="col">Target</th><th scope="col">Status</th></tr></thead><tbody>{inventory.map((stock) => <tr key={stock.stockId}><td>{stock.medicationName}</td><td>{formatQuantity(stock.currentQuantity) + " " + stock.unit}</td><td>{formatQuantity(Number(stock.reorderAtQuantity)) + " " + stock.unit}</td><td>{stock.targetQuantity ? formatQuantity(Number(stock.targetQuantity)) + " " + stock.unit : "—"}</td><td><span className={stock.needsRefill ? "status status-warning" : "status"}>{stock.needsRefill ? "Refill" : "In stock"}</span></td></tr>)}</tbody></table></section>}
-    </main>
-  );
+  const activePrescriptions = await db.select({ medicationId: prescriptions.medicationId, doseAmount: prescriptions.doseAmount, doseUnit: prescriptions.doseUnit, frequency: prescriptions.frequency, repeatsRemaining: prescriptions.repeatsRemaining }).from(prescriptions).where(eq(prescriptions.isActive, true));
+  const inventory = stocks.map((stock) => { const delta = events.filter((event) => event.stockId === stock.stockId).reduce((total, event) => total + Number(event.quantityDelta), 0); return { ...stock, currentQuantity: Number(stock.openingQuantity) + delta, prescription: activePrescriptions.find((item) => item.medicationId === stock.medicationId) }; });
+  return <main className="data-lab-shell"><p className="eyebrow">HealthHome · Preview only</p><h1>Medication inventory data lab</h1><p className="data-lab-intro">Test records, supply, prescription details and dose logging before the product UI is designed. These records are synthetic Preview data only.</p><section className="data-lab-form"><h2>Add medication and supply</h2><form action={addMedication} className="medication-form"><label>Name<input name="name" required placeholder="e.g. Metformin" /></label><label>Initial supply<input name="initialQuantity" required inputMode="decimal" placeholder="56" /></label><label>Unit<input name="unit" required placeholder="tablets" /></label><label>Refill at<input name="reorderAtQuantity" required inputMode="decimal" placeholder="14" /></label><label>Target supply<input name="targetQuantity" required inputMode="decimal" placeholder="56" /></label><label>Strength (optional)<input name="strengthValue" inputMode="decimal" placeholder="500" /></label><label>Strength unit<input name="strengthUnit" placeholder="mg" /></label><label>Dose amount (optional)<input name="doseAmount" inputMode="decimal" placeholder="1" /></label><label>Dose unit<input name="doseUnit" placeholder="tablet" /></label><label>Frequency<input name="frequency" placeholder="Twice daily" /></label><label>Script expiry<input name="scriptExpiresOn" type="date" /></label><label>Repeats remaining<input name="repeatsRemaining" inputMode="numeric" min="0" step="1" /></label><button type="submit">Save preview medication</button></form></section>{inventory.length === 0 ? <section className="data-lab-empty"><h2>No test stock yet</h2><p>Add a preview medication to prove the record, inventory and refill rules.</p></section> : <section className="data-lab-table-wrap"><table><thead><tr><th>Medication</th><th>Current</th><th>Prescription</th><th>Refill at</th><th>Action</th></tr></thead><tbody>{inventory.map((stock) => { const needsRefill = stock.currentQuantity <= Number(stock.reorderAtQuantity); const doseAction = logDose.bind(null, stock.stockId); return <tr key={stock.stockId}><td>{stock.medicationName}</td><td><strong>{formatQuantity(stock.currentQuantity) + " " + stock.unit}</strong><br /><span className={needsRefill ? "status status-warning" : "status"}>{needsRefill ? "Refill" : "In stock"}</span></td><td>{stock.prescription ? <>{stock.prescription.doseAmount + " " + (stock.prescription.doseUnit || stock.unit)}<br /><small>{stock.prescription.frequency || "Frequency not set"}{stock.prescription.repeatsRemaining !== null ? " · " + stock.prescription.repeatsRemaining + " repeats" : ""}</small></> : <small>No prescription recorded</small>}</td><td>{formatQuantity(Number(stock.reorderAtQuantity)) + " " + stock.unit}<br /><small>Target {formatQuantity(Number(stock.targetQuantity))}</small></td><td><form action={doseAction} className="dose-form"><input name="quantity" required inputMode="decimal" placeholder="Dose" aria-label={"Dose quantity for " + stock.medicationName} /><input name="note" placeholder="Optional note" aria-label={"Dose note for " + stock.medicationName} /><button type="submit">Log dose</button></form></td></tr>; })}</tbody></table></section>}</main>;
 }
