@@ -68,9 +68,12 @@ export async function POST(request: NextRequest) {
       throw new DexcomSyncError(`egv-request-${response.status}`, detail);
     }
     const data = await response.json() as DexcomResponse;
-    for (const record of data.records || []) {
-      if (!record.recordId || !record.systemTime || typeof record.value !== "number") continue;
-      await db.insert(glucoseReadings).values({ connectionId: connection.id, sourceReadingId: record.recordId, recordedAt: new Date(record.systemTime), valueMgDl: record.value, trend: "unknown", trendRate: record.trendRate === null || record.trendRate === undefined ? null : String(record.trendRate) }).onConflictDoNothing();
+    const readings = (data.records || []).flatMap((record) => {
+      if (!record.recordId || !record.systemTime || typeof record.value !== "number") return [];
+      return [{ connectionId: connection.id, sourceReadingId: record.recordId, recordedAt: new Date(record.systemTime), valueMgDl: record.value, trend: "unknown" as const, trendRate: record.trendRate === null || record.trendRate === undefined ? null : String(record.trendRate) }];
+    });
+    if (readings.length > 0) {
+      await db.insert(glucoseReadings).values(readings).onConflictDoNothing();
     }
     await db.update(dexcomConnections).set({ lastSyncedAt: new Date(), lastError: null, updatedAt: new Date() }).where(eq(dexcomConnections.id, connection.id));
     return NextResponse.redirect(new URL("/app?dexcom=synced", request.url), 303);
