@@ -25,6 +25,10 @@ function dexcomUtcTime(value: string) {
   return date;
 }
 
+function dexcomRequestTime(date: Date) {
+  return date.toISOString().replace(/\.\d{3}Z$/, "");
+}
+
 export async function POST(request: NextRequest) {
   const member = await currentMember();
   if (!member) return NextResponse.redirect(new URL("/auth/sign-in", request.url));
@@ -51,9 +55,14 @@ export async function POST(request: NextRequest) {
     const earliestReading = dexcomUtcTime(earliest);
     const start = new Date(Math.max(earliestReading.getTime(), latestReading.getTime() - 24 * 60 * 60 * 1000));
     const end = new Date(latestReading.getTime() + 1000);
-    const endpoint = new URL("/v3/users/self/egvs", config.apiBaseUrl); endpoint.searchParams.set("startDate", start.toISOString()); endpoint.searchParams.set("endDate", end.toISOString());
+    const endpoint = new URL("/v3/users/self/egvs", config.apiBaseUrl); endpoint.searchParams.set("startDate", dexcomRequestTime(start)); endpoint.searchParams.set("endDate", dexcomRequestTime(end));
     const response = await fetch(endpoint, { headers: { authorization: "Bearer " + accessToken, accept: "application/json" }, cache: "no-store" });
-    if (!response.ok) throw new DexcomSyncError(`egv-request-${response.status}`); const data = await response.json() as DexcomResponse;
+    if (!response.ok) {
+      const detail = (await response.text()).slice(0, 500);
+      console.error("Dexcom EGV request rejected", { status: response.status, detail });
+      throw new DexcomSyncError(`egv-request-${response.status}`);
+    }
+    const data = await response.json() as DexcomResponse;
     for (const record of data.records || []) {
       if (!record.recordId || !record.systemTime || typeof record.value !== "number") continue;
       await db.insert(glucoseReadings).values({ connectionId: connection.id, sourceReadingId: record.recordId, recordedAt: new Date(record.systemTime), valueMgDl: record.value, trend: "unknown", trendRate: record.trendRate === null || record.trendRate === undefined ? null : String(record.trendRate) }).onConflictDoNothing();
