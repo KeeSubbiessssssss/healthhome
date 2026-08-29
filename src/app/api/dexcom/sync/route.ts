@@ -11,6 +11,12 @@ export const dynamic = "force-dynamic";
 type DexcomEgv = { recordId?: string; systemTime?: string; value?: number; trendRate?: number | null };
 type DexcomResponse = { records?: DexcomEgv[] };
 
+class DexcomSyncError extends Error {
+  constructor(readonly code: string) {
+    super(code);
+  }
+}
+
 export async function POST(request: NextRequest) {
   const member = await currentMember();
   if (!member) return NextResponse.redirect(new URL("/auth/sign-in", request.url));
@@ -22,21 +28,23 @@ export async function POST(request: NextRequest) {
     const config = dexcomConfig(); let accessToken = decryptDexcomToken(credentials.accessTokenCiphertext);
     if (credentials.accessTokenExpiresAt.getTime() < Date.now() + 60_000) {
       const tokenResponse = await fetch(config.tokenUrl, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ client_id: config.clientId, client_secret: config.clientSecret, refresh_token: decryptDexcomToken(credentials.refreshTokenCiphertext), grant_type: "refresh_token" }), cache: "no-store" });
-      if (!tokenResponse.ok) throw new Error("refresh failed"); const refreshed = await tokenResponse.json() as { access_token?: string; refresh_token?: string; expires_in?: number };
-      if (!refreshed.access_token || !refreshed.refresh_token || !refreshed.expires_in) throw new Error("refresh incomplete"); accessToken = refreshed.access_token;
+      if (!tokenResponse.ok) throw new DexcomSyncError(`token-refresh-${tokenResponse.status}`); const refreshed = await tokenResponse.json() as { access_token?: string; refresh_token?: string; expires_in?: number };
+      if (!refreshed.access_token || !refreshed.refresh_token || !refreshed.expires_in) throw new DexcomSyncError("token-refresh-incomplete"); accessToken = refreshed.access_token;
       await db.update(dexcomOAuthCredentials).set({ accessTokenCiphertext: encryptDexcomToken(refreshed.access_token), refreshTokenCiphertext: encryptDexcomToken(refreshed.refresh_token), accessTokenExpiresAt: new Date(Date.now() + refreshed.expires_in * 1000), updatedAt: new Date() }).where(eq(dexcomOAuthCredentials.connectionId, connection.id));
     }
     const end = new Date(); const start = new Date(end.getTime() - 24 * 60 * 60 * 1000); const endpoint = new URL("/v3/users/self/egvs", config.apiBaseUrl); endpoint.searchParams.set("startDate", start.toISOString()); endpoint.searchParams.set("endDate", end.toISOString());
     const response = await fetch(endpoint, { headers: { authorization: "Bearer " + accessToken, accept: "application/json" }, cache: "no-store" });
-    if (!response.ok) throw new Error("Dexcom EGV request failed"); const data = await response.json() as DexcomResponse;
+    if (!response.ok) throw new DexcomSyncError(`egv-request-${response.status}`); const data = await response.json() as DexcomResponse;
     for (const record of data.records || []) {
       if (!record.recordId || !record.systemTime || typeof record.value !== "number") continue;
       await db.insert(glucoseReadings).values({ connectionId: connection.id, sourceReadingId: record.recordId, recordedAt: new Date(record.systemTime), valueMgDl: record.value, trend: "unknown", trendRate: record.trendRate === null || record.trendRate === undefined ? null : String(record.trendRate) }).onConflictDoNothing();
     }
     await db.update(dexcomConnections).set({ lastSyncedAt: new Date(), lastError: null, updatedAt: new Date() }).where(eq(dexcomConnections.id, connection.id));
     return NextResponse.redirect(new URL("/app?dexcom=synced", request.url));
-  } catch {
-    await db.update(dexcomConnections).set({ status: "error", lastError: "Sync failed. Try reconnecting Dexcom.", updatedAt: new Date() }).where(and(eq(dexcomConnections.id, connection.id), eq(dexcomConnections.householdMemberId, member.id)));
+  } catch (error) {
+    const code = error instanceof DexcomSyncError ? error.code : "unexpected";
+    console.error("Dexcom sync failed", { code });
+    await db.update(dexcomConnections).set({ lastError: `Dexcom sync could not complete (${code}).`, updatedAt: new Date() }).where(and(eq(dexcomConnections.id, connection.id), eq(dexcomConnections.householdMemberId, member.id)));
     return NextResponse.redirect(new URL("/app?dexcom=sync-failed", request.url));
   }
 }
