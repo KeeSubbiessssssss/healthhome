@@ -13,8 +13,8 @@ type DexcomResponse = { records?: DexcomEgv[] };
 type DexcomDataRange = { egvs?: { start?: { systemTime?: string }; end?: { systemTime?: string } } };
 
 class DexcomSyncError extends Error {
-  constructor(readonly code: string) {
-    super(code);
+  constructor(readonly code: string, readonly detail = "Dexcom rejected the glucose-reading request.") {
+    super(detail);
   }
 }
 
@@ -58,9 +58,14 @@ export async function POST(request: NextRequest) {
     const endpoint = new URL("/v3/users/self/egvs", config.apiBaseUrl); endpoint.searchParams.set("startDate", dexcomRequestTime(start)); endpoint.searchParams.set("endDate", dexcomRequestTime(end));
     const response = await fetch(endpoint, { headers: { authorization: "Bearer " + accessToken, accept: "application/json" }, cache: "no-store" });
     if (!response.ok) {
-      const detail = (await response.text()).slice(0, 500);
+      const responseText = (await response.text()).slice(0, 500);
+      let detail = "Dexcom rejected the glucose-reading request.";
+      try {
+        const parsed = JSON.parse(responseText) as { message?: string; error?: string };
+        detail = parsed.message || parsed.error || detail;
+      } catch { /* Dexcom does not guarantee JSON error bodies. */ }
       console.error("Dexcom EGV request rejected", { status: response.status, detail });
-      throw new DexcomSyncError(`egv-request-${response.status}`);
+      throw new DexcomSyncError(`egv-request-${response.status}`, detail);
     }
     const data = await response.json() as DexcomResponse;
     for (const record of data.records || []) {
@@ -71,8 +76,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(new URL("/app?dexcom=synced", request.url));
   } catch (error) {
     const code = error instanceof DexcomSyncError ? error.code : "unexpected";
+    const detail = error instanceof DexcomSyncError ? error.detail : "Please try again, or reconnect Dexcom.";
     console.error("Dexcom sync failed", { code });
-    await db.update(dexcomConnections).set({ lastError: `Dexcom sync could not complete (${code}).`, updatedAt: new Date() }).where(and(eq(dexcomConnections.id, connection.id), eq(dexcomConnections.householdMemberId, member.id)));
+    await db.update(dexcomConnections).set({ lastError: `Dexcom sync could not complete (${code}): ${detail}`, updatedAt: new Date() }).where(and(eq(dexcomConnections.id, connection.id), eq(dexcomConnections.householdMemberId, member.id)));
     return NextResponse.redirect(new URL("/app?dexcom=sync-failed", request.url));
   }
+}
+
+export async function GET(request: NextRequest) {
+  return NextResponse.redirect(new URL("/app?dexcom=use-sync-button", request.url));
 }
