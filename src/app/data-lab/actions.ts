@@ -1,11 +1,13 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { inventoryEvents, medicationStock, medications, prescriptions } from "@/db/schema";
+import { medications, prescriptions } from "@/db/schema";
 import { db } from "@/lib/db";
 import { currentMember } from "@/lib/household";
+
+const medicationForms = ["tablet", "injection", "aerosol", "liquid", "cream", "other"] as const;
 
 function assertPreviewDataLab() {
   if (process.env.VERCEL_ENV === "production") throw new Error("The data lab cannot write to production.");
@@ -29,86 +31,111 @@ function optionalText(formData: FormData, name: string) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function positiveQuantity(formData: FormData, name: string) {
+function wholeNumber(formData: FormData, name: string, allowZero = false) {
   const value = Number(requiredText(formData, name));
-  if (!Number.isFinite(value) || value <= 0) throw new Error(`${name} must be a positive number.`);
+  if (!Number.isInteger(value) || value < 0 || (!allowZero && value === 0)) throw new Error(`${name} must be a whole number${allowZero ? " of zero or more" : " greater than zero"}.`);
+  return value;
+}
+
+function positiveDecimal(formData: FormData, name: string) {
+  const value = Number(requiredText(formData, name));
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`${name} must be greater than zero.`);
   return value.toFixed(2);
+}
+
+function medicationForm(formData: FormData, name: string) {
+  const value = requiredText(formData, name);
+  if (!medicationForms.includes(value as (typeof medicationForms)[number])) throw new Error(`${name} is not a supported medication type.`);
+  return value as (typeof medicationForms)[number];
+}
+
+async function ownedPrescription(prescriptionId: string) {
+  const member = await previewMember();
+  const [prescription] = await db
+    .select({
+      id: prescriptions.id,
+      totalDosesPerScript: prescriptions.totalDosesPerScript,
+      totalDaysPerScript: prescriptions.totalDaysPerScript,
+      dosesLeft: prescriptions.dosesLeft,
+      daysLeft: prescriptions.daysLeft,
+      repeatsRemaining: prescriptions.repeatsRemaining,
+    })
+    .from(prescriptions)
+    .innerJoin(medications, eq(prescriptions.medicationId, medications.id))
+    .where(and(eq(prescriptions.id, prescriptionId), eq(medications.householdId, member.householdId), eq(prescriptions.isActive, true)))
+    .limit(1);
+  if (!prescription) throw new Error("Medication script was not found.");
+  return prescription;
 }
 
 export async function addMedication(formData: FormData) {
   const member = await previewMember();
-  const name = requiredText(formData, "name");
-  const unit = requiredText(formData, "unit");
-  const initialQuantity = positiveQuantity(formData, "initialQuantity");
-  const reorderAtQuantity = positiveQuantity(formData, "reorderAtQuantity");
-  const targetQuantity = positiveQuantity(formData, "targetQuantity");
-  const strengthValue = optionalText(formData, "strengthValue");
-  const doseAmount = optionalText(formData, "doseAmount");
-  const repeats = optionalText(formData, "repeatsRemaining");
-  const repeatsRemaining = repeats ? Number(repeats) : null;
-
-  if (repeatsRemaining !== null && (!Number.isInteger(repeatsRemaining) || repeatsRemaining < 0)) {
-    throw new Error("repeatsRemaining must be a whole number.");
-  }
+  const pharmaceuticalName = requiredText(formData, "pharmaceuticalName");
+  const streetName = requiredText(formData, "streetName");
+  const type = medicationForm(formData, "type");
+  const strength = requiredText(formData, "strength");
+  const totalDosesPerScript = wholeNumber(formData, "totalDosesPerScript");
+  const totalDaysPerScript = wholeNumber(formData, "totalDaysPerScript");
+  const repeatsPerScript = wholeNumber(formData, "repeatsPerScript", true);
+  const refillAtDaysLeft = wholeNumber(formData, "refillAtDaysLeft", true);
+  const doseAmount = positiveDecimal(formData, "doseAmount");
+  const doseForm = medicationForm(formData, "doseForm");
+  const doseStrength = requiredText(formData, "doseStrength");
+  const frequency = requiredText(formData, "frequency");
 
   await db.transaction(async (tx) => {
     const [medication] = await tx.insert(medications).values({
       householdId: member.householdId,
-      name,
-      form: "tablet",
-      strengthValue: strengthValue ? positiveQuantity(formData, "strengthValue") : null,
-      strengthUnit: optionalText(formData, "strengthUnit"),
+      name: pharmaceuticalName,
+      genericName: streetName,
+      form: type,
+      strengthLabel: strength,
       notes: "Preview test data only. Not clinical advice.",
     }).returning({ id: medications.id });
-    const [stock] = await tx.insert(medicationStock).values({
+    await tx.insert(prescriptions).values({
       medicationId: medication.id,
-      unit,
-      reorderAtQuantity,
-      targetQuantity,
-    }).returning({ id: medicationStock.id });
-    await tx.insert(inventoryEvents).values({
-      stockId: stock.id,
-      eventType: "received",
-      quantityDelta: initialQuantity,
-      note: "Initial Preview stock",
+      householdMemberId: member.id,
+      doseAmount,
+      doseForm,
+      doseStrengthLabel: doseStrength,
+      frequency,
+      scriptExpiresOn: optionalText(formData, "scriptExpiresOn"),
+      totalDosesPerScript,
+      totalDaysPerScript,
+      refillAtDaysLeft,
+      dosesLeft: totalDosesPerScript,
+      daysLeft: totalDaysPerScript,
+      repeatsAuthorized: repeatsPerScript,
+      repeatsRemaining: repeatsPerScript,
     });
-
-    if (doseAmount) {
-      await tx.insert(prescriptions).values({
-        medicationId: medication.id,
-        householdMemberId: member.id,
-        doseAmount: positiveQuantity(formData, "doseAmount"),
-        doseUnit: optionalText(formData, "doseUnit") || unit,
-        frequency: optionalText(formData, "frequency"),
-        scriptExpiresOn: optionalText(formData, "scriptExpiresOn"),
-        repeatsRemaining,
-      });
-    }
   });
 
   revalidatePath("/data-lab");
 }
 
-export async function logDose(stockId: string, formData: FormData) {
-  const member = await previewMember();
-  const quantity = positiveQuantity(formData, "quantity");
-  const [balance] = await db
-    .select({ currentQuantity: sql<string>`coalesce(${medicationStock.openingQuantity} + sum(${inventoryEvents.quantityDelta}), ${medicationStock.openingQuantity})` })
-    .from(medicationStock)
-    .innerJoin(medications, eq(medicationStock.medicationId, medications.id))
-    .leftJoin(inventoryEvents, eq(inventoryEvents.stockId, medicationStock.id))
-    .where(and(eq(medicationStock.id, stockId), eq(medications.householdId, member.householdId)))
-    .groupBy(medicationStock.id)
-    .limit(1);
+export async function doseConsumed(prescriptionId: string) {
+  const prescription = await ownedPrescription(prescriptionId);
+  if (!prescription.dosesLeft || prescription.dosesLeft <= 0) throw new Error("There are no doses left to consume.");
+  await db.update(prescriptions).set({ dosesLeft: prescription.dosesLeft - 1, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
+  revalidatePath("/data-lab");
+}
 
-  if (!balance) throw new Error("Medication stock was not found.");
-  if (Number(balance.currentQuantity) < Number(quantity)) throw new Error("A dose cannot reduce Preview stock below zero.");
+export async function dayConsumed(prescriptionId: string) {
+  const prescription = await ownedPrescription(prescriptionId);
+  if (!prescription.daysLeft || prescription.daysLeft <= 0) throw new Error("There are no days left to consume.");
+  await db.update(prescriptions).set({ daysLeft: prescription.daysLeft - 1, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
+  revalidatePath("/data-lab");
+}
 
-  await db.insert(inventoryEvents).values({
-    stockId,
-    eventType: "consumed",
-    quantityDelta: `-${quantity}`,
-    note: optionalText(formData, "note") || "Preview dose logged",
-  });
+export async function filledRepeat(prescriptionId: string) {
+  const prescription = await ownedPrescription(prescriptionId);
+  if (!prescription.repeatsRemaining || prescription.repeatsRemaining <= 0) throw new Error("There are no repeats left to fill.");
+  if (!prescription.totalDosesPerScript || !prescription.totalDaysPerScript) throw new Error("This script is missing its dose or day totals.");
+  await db.update(prescriptions).set({
+    dosesLeft: (prescription.dosesLeft || 0) + prescription.totalDosesPerScript,
+    daysLeft: (prescription.daysLeft || 0) + prescription.totalDaysPerScript,
+    repeatsRemaining: prescription.repeatsRemaining - 1,
+    updatedAt: new Date(),
+  }).where(eq(prescriptions.id, prescription.id));
   revalidatePath("/data-lab");
 }
