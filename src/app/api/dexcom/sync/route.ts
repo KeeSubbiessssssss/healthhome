@@ -31,11 +31,11 @@ function dexcomRequestTime(date: Date) {
 
 export async function POST(request: NextRequest) {
   const member = await currentMember();
-  if (!member) return NextResponse.redirect(new URL("/auth/sign-in", request.url));
+  if (!member) return NextResponse.redirect(new URL("/auth/sign-in", request.url), 303);
   const [connection] = await db.select().from(dexcomConnections).where(eq(dexcomConnections.householdMemberId, member.id)).limit(1);
-  if (!connection) return NextResponse.redirect(new URL("/app?dexcom=not-connected", request.url));
+  if (!connection) return NextResponse.redirect(new URL("/app?dexcom=not-connected", request.url), 303);
   const [credentials] = await db.select().from(dexcomOAuthCredentials).where(eq(dexcomOAuthCredentials.connectionId, connection.id)).limit(1);
-  if (!credentials) return NextResponse.redirect(new URL("/app?dexcom=needs-reauth", request.url));
+  if (!credentials) return NextResponse.redirect(new URL("/app?dexcom=needs-reauth", request.url), 303);
   try {
     const config = dexcomConfig(); let accessToken = decryptDexcomToken(credentials.accessTokenCiphertext);
     if (credentials.accessTokenExpiresAt.getTime() < Date.now() + 60_000) {
@@ -73,13 +73,13 @@ export async function POST(request: NextRequest) {
       await db.insert(glucoseReadings).values({ connectionId: connection.id, sourceReadingId: record.recordId, recordedAt: new Date(record.systemTime), valueMgDl: record.value, trend: "unknown", trendRate: record.trendRate === null || record.trendRate === undefined ? null : String(record.trendRate) }).onConflictDoNothing();
     }
     await db.update(dexcomConnections).set({ lastSyncedAt: new Date(), lastError: null, updatedAt: new Date() }).where(eq(dexcomConnections.id, connection.id));
-    return NextResponse.redirect(new URL("/app?dexcom=synced", request.url));
+    return NextResponse.redirect(new URL("/app?dexcom=synced", request.url), 303);
   } catch (error) {
     const code = error instanceof DexcomSyncError ? error.code : "unexpected";
     const detail = error instanceof DexcomSyncError ? error.detail : "Please try again, or reconnect Dexcom.";
     console.error("Dexcom sync failed", { code });
     await db.update(dexcomConnections).set({ lastError: `Dexcom sync could not complete (${code}): ${detail}`, updatedAt: new Date() }).where(and(eq(dexcomConnections.id, connection.id), eq(dexcomConnections.householdMemberId, member.id)));
-    return NextResponse.redirect(new URL("/app?dexcom=sync-failed", request.url));
+    return NextResponse.redirect(new URL("/app?dexcom=sync-failed", request.url), 303);
   }
 }
 
