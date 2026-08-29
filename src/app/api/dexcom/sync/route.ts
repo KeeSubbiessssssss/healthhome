@@ -10,11 +10,19 @@ export const dynamic = "force-dynamic";
 
 type DexcomEgv = { recordId?: string; systemTime?: string; value?: number; trendRate?: number | null };
 type DexcomResponse = { records?: DexcomEgv[] };
+type DexcomDataRange = { egvs?: { start?: { systemTime?: string }; end?: { systemTime?: string } } };
 
 class DexcomSyncError extends Error {
   constructor(readonly code: string) {
     super(code);
   }
+}
+
+function dexcomUtcTime(value: string) {
+  const timestamp = /(?:Z|[+-]\d{2}:\d{2})$/.test(value) ? value : `${value}Z`;
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) throw new DexcomSyncError("data-range-invalid");
+  return date;
 }
 
 export async function POST(request: NextRequest) {
@@ -32,7 +40,18 @@ export async function POST(request: NextRequest) {
       if (!refreshed.access_token || !refreshed.refresh_token || !refreshed.expires_in) throw new DexcomSyncError("token-refresh-incomplete"); accessToken = refreshed.access_token;
       await db.update(dexcomOAuthCredentials).set({ accessTokenCiphertext: encryptDexcomToken(refreshed.access_token), refreshTokenCiphertext: encryptDexcomToken(refreshed.refresh_token), accessTokenExpiresAt: new Date(Date.now() + refreshed.expires_in * 1000), updatedAt: new Date() }).where(eq(dexcomOAuthCredentials.connectionId, connection.id));
     }
-    const end = new Date(); const start = new Date(end.getTime() - 24 * 60 * 60 * 1000); const endpoint = new URL("/v3/users/self/egvs", config.apiBaseUrl); endpoint.searchParams.set("startDate", start.toISOString()); endpoint.searchParams.set("endDate", end.toISOString());
+    const dataRangeEndpoint = new URL("/v3/users/self/dataRange", config.apiBaseUrl);
+    const dataRangeResponse = await fetch(dataRangeEndpoint, { headers: { authorization: "Bearer " + accessToken, accept: "application/json" }, cache: "no-store" });
+    if (!dataRangeResponse.ok) throw new DexcomSyncError(`data-range-${dataRangeResponse.status}`);
+    const dataRange = await dataRangeResponse.json() as DexcomDataRange;
+    const earliest = dataRange.egvs?.start?.systemTime;
+    const latest = dataRange.egvs?.end?.systemTime;
+    if (!earliest || !latest) throw new DexcomSyncError("no-egv-data-available");
+    const latestReading = dexcomUtcTime(latest);
+    const earliestReading = dexcomUtcTime(earliest);
+    const start = new Date(Math.max(earliestReading.getTime(), latestReading.getTime() - 24 * 60 * 60 * 1000));
+    const end = new Date(latestReading.getTime() + 1000);
+    const endpoint = new URL("/v3/users/self/egvs", config.apiBaseUrl); endpoint.searchParams.set("startDate", start.toISOString()); endpoint.searchParams.set("endDate", end.toISOString());
     const response = await fetch(endpoint, { headers: { authorization: "Bearer " + accessToken, accept: "application/json" }, cache: "no-store" });
     if (!response.ok) throw new DexcomSyncError(`egv-request-${response.status}`); const data = await response.json() as DexcomResponse;
     for (const record of data.records || []) {
