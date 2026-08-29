@@ -57,6 +57,12 @@ export default async function AppPage() {
         {isConnected ? <form action="/api/dexcom/sync" method="post"><button type="submit">Sync Dexcom readings</button></form> : <a className="dexcom-link" href="/api/dexcom/connect">Connect Dexcom</a>}
       </section>
 
+      <section className="data-lab-form">
+        <h2>Medication inventory</h2>
+        <p>Use the Preview data lab to add test medications, track supply, and log doses against your household’s own test data.</p>
+        <a className="dexcom-link" href="/data-lab">Open medication data lab</a>
+      </section>
+
       <section aria-labelledby="glucose-heading">
         <div className="glucose-section-heading">
           <div>
