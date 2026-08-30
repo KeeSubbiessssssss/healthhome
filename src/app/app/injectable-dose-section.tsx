@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { doseConsumed } from "@/app/data-lab/actions";
+import { DataPanelRive } from "@/app/app/data-panel-rive";
 
 type InjectableScript = {
   prescriptionId: string;
@@ -92,6 +93,8 @@ export function InjectableDoseSection({ scripts }: { scripts: InjectableScript[]
 
   return (
     <section className="injectable-dose-section" aria-label="Injectable dosing">
+      <DataPanelRive />
+      <div className="dashboard-panel-content">
       <div className="dashboard-panel-heading">
         <div>
           <p className="eyebrow">Injectables</p>
@@ -115,6 +118,7 @@ export function InjectableDoseSection({ scripts }: { scripts: InjectableScript[]
             </button>
           </article>
         ))}
+      </div>
       </div>
       {activeScript ? (
         <div className="injectable-dose-overlay" role="presentation">
