@@ -1,7 +1,8 @@
 import { and, desc, eq } from "drizzle-orm";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { addMedication, dayConsumed, doseConsumed, filledRepeat } from "@/app/data-lab/actions";
+import { addMedication, archiveMedication, dayConsumed, doseConsumed, filledRepeat, updateMedication } from "@/app/data-lab/actions";
 import { SaveMedicationButton } from "@/app/data-lab/submit-button";
 import { medications, prescriptions } from "@/db/schema";
 import { db } from "@/lib/db";
@@ -29,7 +30,7 @@ function displayUnits(value: string | null) {
 export default async function DataLabPage({
   searchParams,
 }: {
-  searchParams: Promise<{ medication?: string }>;
+  searchParams: Promise<{ medication?: string; edit?: string; remove?: string }>;
 }) {
   if (process.env.VERCEL_ENV === "production") {
     return <main className="data-lab-shell"><p className="eyebrow">HealthHome</p><h1>Data lab is available in Preview.</h1><p>Production never accepts test data.</p></main>;
@@ -39,7 +40,7 @@ export default async function DataLabPage({
   if (!user) redirect("/auth/sign-in");
   const member = await currentMember();
   if (!member) redirect("/onboarding");
-  const { medication } = await searchParams;
+  const { medication, edit, remove } = await searchParams;
 
   const scripts = await db
     .select({
@@ -75,6 +76,8 @@ export default async function DataLabPage({
       <h1>Medication tracking data lab</h1>
       <p className="data-lab-intro">Enter physical units once. HealthHome calculates full doses and full days from those values, then keeps them in sync as you record consumption or refill a repeat.</p>
       {medication === "saved" ? <p className="save-confirmation" role="status">Medication script saved. Its tracking card is below.</p> : null}
+      {medication === "updated" ? <p className="save-confirmation" role="status">Medication script updated. Tracking totals were recalculated from the current units you entered.</p> : null}
+      {medication === "removed" ? <p className="save-confirmation" role="status">Medication removed from your active list. Its existing Preview record has been kept safely as archived history.</p> : null}
 
       <section className="data-lab-form">
         <h2>Add medication script</h2>
@@ -110,9 +113,15 @@ export default async function DataLabPage({
             const doseAction = doseConsumed.bind(null, script.prescriptionId);
             const dayAction = dayConsumed.bind(null, script.prescriptionId);
             const repeatAction = filledRepeat.bind(null, script.prescriptionId);
+            const updateAction = updateMedication.bind(null, script.prescriptionId);
+            const archiveAction = archiveMedication.bind(null, script.prescriptionId);
+            const isEditing = edit === script.prescriptionId;
+            const isRemoving = remove === script.prescriptionId;
             const needsRefill = script.refillAtDaysLeft !== null && script.daysLeft !== null && script.daysLeft <= script.refillAtDaysLeft;
             return <article className="script-card" key={script.prescriptionId}>
-              <header><div><p className="eyebrow">{script.type}</p><h2>{script.pharmaceuticalName}</h2><p>{script.streetName || "No street name"} · {script.strength || "Strength not set"}</p></div><span className={needsRefill ? "status status-warning" : "status"}>{needsRefill ? "Refill due" : "Tracking"}</span></header>
+              <header><div><p className="eyebrow">{script.type}</p><h2>{script.pharmaceuticalName}</h2><p>{script.streetName || "No street name"} · {script.strength || "Strength not set"}</p></div><div className="script-card-actions"><span className={needsRefill ? "status status-warning" : "status"}>{needsRefill ? "Refill due" : "Tracking"}</span><Link className="action-link" href={`/data-lab?edit=${script.prescriptionId}`}>Edit</Link><Link className="action-link action-link-danger" href={`/data-lab?remove=${script.prescriptionId}`}>Remove</Link></div></header>
+              {isEditing ? <section className="edit-script" aria-label={`Edit ${script.pharmaceuticalName}`}><h3>Edit medication script</h3><p>Set the actual units and repeats left now. HealthHome recalculates full doses and days from those values.</p><form action={updateAction} className="medication-form medication-script-form"><fieldset><legend>Medication</legend><label>Medication Pharm Name<input name="pharmaceuticalName" required defaultValue={script.pharmaceuticalName} /></label><label>Medication Street Name<input name="streetName" required defaultValue={script.streetName || ""} /></label><label>Type<select name="type" required defaultValue={script.type}>{medicationTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Strength<input name="strength" required defaultValue={script.strength || ""} /></label><label>Total Units Per Script<input name="totalUnitsPerScript" required inputMode="decimal" min="0.01" step="0.01" defaultValue={script.totalUnitsPerScript || ""} /></label><label>Doses Per Day<input name="dosesPerDay" required inputMode="numeric" min="1" step="1" defaultValue={script.dosesPerDay ?? ""} /></label><label>Repeats Per Script<input name="repeatsPerScript" required inputMode="numeric" min="0" step="1" defaultValue={script.repeatsPerScript ?? ""} /></label><label>Script Expiry<input name="scriptExpiresOn" type="date" defaultValue={script.scriptExpiresOn || ""} /></label><label>Refill at <span>Days left</span><input name="refillAtDaysLeft" required inputMode="numeric" min="0" step="1" defaultValue={script.refillAtDaysLeft ?? ""} /></label></fieldset><fieldset><legend>Doseing</legend><label>Units Per Dose<input name="unitsPerDose" required inputMode="decimal" min="0.01" step="0.01" defaultValue={script.unitsPerDose || ""} /></label><label>Type<select name="doseForm" required defaultValue={script.doseForm || "other"}>{medicationTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Dose Strength <span>Optional</span><input name="doseStrength" defaultValue={script.doseStrength || ""} /></label><label>Units Left <span>Actual current stock</span><input name="unitsLeft" required inputMode="decimal" min="0" step="0.01" defaultValue={script.unitsLeft || "0"} /></label><label>Repeats Left<input name="repeatsLeft" required inputMode="numeric" min="0" step="1" defaultValue={script.repeatsLeft ?? 0} /></label><p className="calculation-hint">Changing units left, units per dose or doses per day recalculates doses left and full days left. A value of zero is allowed for current units.</p></fieldset><div className="edit-actions"><SaveMedicationButton idleLabel="Save changes" pendingLabel="Saving changes…" /><Link className="action-link" href="/data-lab">Cancel</Link></div></form></section> : null}
+              {isRemoving ? <section className="remove-confirmation" aria-label={`Remove ${script.pharmaceuticalName}`}><h3>Remove this medication?</h3><p>This removes it from your active list only. Its Preview history is kept, rather than permanently deleting health-related data.</p><form action={archiveAction}><label><input name="confirmArchive" type="checkbox" value="yes" required /> I understand this will archive this medication.</label><div className="edit-actions"><SaveMedicationButton idleLabel="Remove medication" pendingLabel="Removing medication…" /><Link className="action-link" href="/data-lab">Cancel</Link></div></form></section> : null}
               <dl className="script-details"><div><dt>Total units</dt><dd>{displayUnits(script.totalUnitsPerScript)}</dd></div><div><dt>Units per dose</dt><dd>{displayUnits(script.unitsPerDose)}</dd></div><div><dt>Doses per day</dt><dd>{displayNumber(script.dosesPerDay)}</dd></div><div><dt>Total doses</dt><dd>{displayNumber(script.totalDosesPerScript)}</dd></div><div><dt>Total full days</dt><dd>{displayNumber(script.totalDaysPerScript)}</dd></div><div><dt>Repeats per script</dt><dd>{displayNumber(script.repeatsPerScript)}</dd></div><div><dt>Script expiry</dt><dd>{script.scriptExpiresOn || "—"}</dd></div><div><dt>Refill at</dt><dd>{displayNumber(script.refillAtDaysLeft)} days left</dd></div></dl>
               <section className="dosing-section"><h3>Doseing</h3><p>{displayUnits(script.unitsPerDose)} {script.doseForm || "units"}{script.doseStrength ? ` · ${script.doseStrength}` : ""}</p><small>{script.frequency || "Frequency not set"}</small></section>
               <section className="tracking-section"><h3>Tracking</h3><div className="tracking-grid tracking-grid-four"><div><span>Units Left</span><strong>{displayUnits(script.unitsLeft)}</strong></div><div><span>Doses Left</span><strong>{displayNumber(script.dosesLeft)}</strong></div><div><span>Days Left</span><strong>{displayNumber(script.daysLeft)}</strong></div><div><span>Repeats Left</span><strong>{displayNumber(script.repeatsLeft)}</strong></div></div><p className="tracking-note">Dose Consumed removes one dose’s units. Day Consumed removes a full day’s units only. Filled Repeat carries remaining units forward, then adds the new script’s units.</p><div className="tracking-actions"><form action={doseAction}><button type="submit">Dose Consumed</button></form><form action={dayAction}><button type="submit">Day Consumed</button></form><form action={repeatAction}><button type="submit">Filled Repeat</button></form></div></section>

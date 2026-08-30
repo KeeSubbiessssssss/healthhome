@@ -44,6 +44,12 @@ function positiveDecimal(formData: FormData, name: string) {
   return value.toFixed(2);
 }
 
+function nonNegativeDecimal(formData: FormData, name: string) {
+  const value = Number(requiredText(formData, name));
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${name} must be zero or greater.`);
+  return value.toFixed(2);
+}
+
 function medicationForm(formData: FormData, name: string) {
   const value = requiredText(formData, name);
   if (!medicationForms.includes(value as (typeof medicationForms)[number])) throw new Error(`${name} is not a supported medication type.`);
@@ -83,8 +89,19 @@ async function ownedPrescription(prescriptionId: string) {
   return { ...prescription, totalUnitsPerScript, unitsPerDose, dosesPerDay, unitsLeft };
 }
 
-export async function addMedication(formData: FormData) {
+async function ownedMedicationScript(prescriptionId: string) {
   const member = await previewMember();
+  const [script] = await db
+    .select({ prescriptionId: prescriptions.id, medicationId: prescriptions.medicationId })
+    .from(prescriptions)
+    .innerJoin(medications, eq(prescriptions.medicationId, medications.id))
+    .where(and(eq(prescriptions.id, prescriptionId), eq(medications.householdId, member.householdId), eq(prescriptions.isActive, true)))
+    .limit(1);
+  if (!script) throw new Error("Medication script was not found.");
+  return script;
+}
+
+function medicationScriptValues(formData: FormData) {
   const pharmaceuticalName = requiredText(formData, "pharmaceuticalName");
   const streetName = requiredText(formData, "streetName");
   const type = medicationForm(formData, "type");
@@ -96,43 +113,113 @@ export async function addMedication(formData: FormData) {
   const refillAtDaysLeft = wholeNumber(formData, "refillAtDaysLeft", true);
   const doseForm = medicationForm(formData, "doseForm");
   const doseStrength = optionalText(formData, "doseStrength");
-  const tracking = trackingFromUnits(Number(totalUnitsPerScript), Number(unitsPerDose), dosesPerDay);
-  if (tracking.dosesLeft === 0 || tracking.daysLeft === 0) throw new Error("Total units must cover at least one full day at the chosen dose and doses per day.");
+  const scriptExpiresOn = optionalText(formData, "scriptExpiresOn");
   const frequency = `${dosesPerDay} ${dosesPerDay === 1 ? "dose" : "doses"} per day`;
+  return {
+    pharmaceuticalName,
+    streetName,
+    type,
+    strength,
+    totalUnitsPerScript,
+    unitsPerDose,
+    dosesPerDay,
+    repeatsPerScript,
+    refillAtDaysLeft,
+    doseForm,
+    doseStrength,
+    scriptExpiresOn,
+    frequency,
+  };
+}
+
+export async function addMedication(formData: FormData) {
+  const member = await previewMember();
+  const values = medicationScriptValues(formData);
+  const tracking = trackingFromUnits(Number(values.totalUnitsPerScript), Number(values.unitsPerDose), values.dosesPerDay);
+  if (tracking.dosesLeft === 0 || tracking.daysLeft === 0) throw new Error("Total units must cover at least one full day at the chosen dose and doses per day.");
 
   await db.transaction(async (tx) => {
     const [medication] = await tx.insert(medications).values({
       householdId: member.householdId,
-      name: pharmaceuticalName,
-      genericName: streetName,
-      form: type,
-      strengthLabel: strength,
+      name: values.pharmaceuticalName,
+      genericName: values.streetName,
+      form: values.type,
+      strengthLabel: values.strength,
       notes: "Preview test data only. Not clinical advice.",
     }).returning({ id: medications.id });
     await tx.insert(prescriptions).values({
       medicationId: medication.id,
       householdMemberId: member.id,
-      doseAmount: unitsPerDose,
-      doseForm,
-      doseStrengthLabel: doseStrength,
-      frequency,
-      scriptExpiresOn: optionalText(formData, "scriptExpiresOn"),
-      totalUnitsPerScript,
-      unitsPerDose,
-      dosesPerDay,
+      doseAmount: values.unitsPerDose,
+      doseForm: values.doseForm,
+      doseStrengthLabel: values.doseStrength,
+      frequency: values.frequency,
+      scriptExpiresOn: values.scriptExpiresOn,
+      totalUnitsPerScript: values.totalUnitsPerScript,
+      unitsPerDose: values.unitsPerDose,
+      dosesPerDay: values.dosesPerDay,
       unitsLeft: tracking.unitsLeft,
       totalDosesPerScript: tracking.dosesLeft,
       totalDaysPerScript: tracking.daysLeft,
-      refillAtDaysLeft,
+      refillAtDaysLeft: values.refillAtDaysLeft,
       dosesLeft: tracking.dosesLeft,
       daysLeft: tracking.daysLeft,
-      repeatsAuthorized: repeatsPerScript,
-      repeatsRemaining: repeatsPerScript,
+      repeatsAuthorized: values.repeatsPerScript,
+      repeatsRemaining: values.repeatsPerScript,
     });
   });
 
   revalidatePath("/data-lab");
   redirect("/data-lab?medication=saved");
+}
+
+export async function updateMedication(prescriptionId: string, formData: FormData) {
+  const script = await ownedMedicationScript(prescriptionId);
+  const values = medicationScriptValues(formData);
+  const unitsLeft = nonNegativeDecimal(formData, "unitsLeft");
+  const repeatsLeft = wholeNumber(formData, "repeatsLeft", true);
+  if (repeatsLeft > values.repeatsPerScript) throw new Error("Repeats left cannot be higher than repeats per script.");
+  const tracking = trackingFromUnits(Number(unitsLeft), Number(values.unitsPerDose), values.dosesPerDay);
+
+  await db.transaction(async (tx) => {
+    await tx.update(medications).set({
+      name: values.pharmaceuticalName,
+      genericName: values.streetName,
+      form: values.type,
+      strengthLabel: values.strength,
+      updatedAt: new Date(),
+    }).where(eq(medications.id, script.medicationId));
+    await tx.update(prescriptions).set({
+      doseAmount: values.unitsPerDose,
+      doseForm: values.doseForm,
+      doseStrengthLabel: values.doseStrength,
+      frequency: values.frequency,
+      scriptExpiresOn: values.scriptExpiresOn,
+      totalUnitsPerScript: values.totalUnitsPerScript,
+      unitsPerDose: values.unitsPerDose,
+      dosesPerDay: values.dosesPerDay,
+      unitsLeft: tracking.unitsLeft,
+      totalDosesPerScript: tracking.dosesLeft,
+      totalDaysPerScript: tracking.daysLeft,
+      refillAtDaysLeft: values.refillAtDaysLeft,
+      dosesLeft: tracking.dosesLeft,
+      daysLeft: tracking.daysLeft,
+      repeatsAuthorized: values.repeatsPerScript,
+      repeatsRemaining: repeatsLeft,
+      updatedAt: new Date(),
+    }).where(eq(prescriptions.id, script.prescriptionId));
+  });
+
+  revalidatePath("/data-lab");
+  redirect("/data-lab?medication=updated");
+}
+
+export async function archiveMedication(prescriptionId: string, formData: FormData) {
+  if (formData.get("confirmArchive") !== "yes") throw new Error("Confirm removal before archiving this medication.");
+  const script = await ownedMedicationScript(prescriptionId);
+  await db.update(prescriptions).set({ isActive: false, updatedAt: new Date() }).where(eq(prescriptions.id, script.prescriptionId));
+  revalidatePath("/data-lab");
+  redirect("/data-lab?medication=removed");
 }
 
 export async function doseConsumed(prescriptionId: string) {
