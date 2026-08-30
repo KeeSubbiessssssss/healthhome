@@ -216,7 +216,6 @@ export async function updateMedication(prescriptionId: string, formData: FormDat
   });
 
   revalidatePath("/data-lab");
-  redirect("/data-lab?medication=updated");
 }
 
 export async function archiveMedication(prescriptionId: string, formData: FormData) {
@@ -224,7 +223,6 @@ export async function archiveMedication(prescriptionId: string, formData: FormDa
   const script = await ownedMedicationScript(prescriptionId);
   await db.update(prescriptions).set({ isActive: false, updatedAt: new Date() }).where(eq(prescriptions.id, script.prescriptionId));
   revalidatePath("/data-lab");
-  redirect("/data-lab?medication=removed");
 }
 
 export async function doseConsumed(prescriptionId: string) {
@@ -269,7 +267,6 @@ export async function undoDoseConsumed(prescriptionId: string, formData: FormDat
   );
   await db.update(prescriptions).set({ ...tracking, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
   revalidatePath("/data-lab");
-  redirect("/data-lab?medication=corrected");
 }
 
 export async function undoDayConsumed(prescriptionId: string, formData: FormData) {
@@ -283,7 +280,6 @@ export async function undoDayConsumed(prescriptionId: string, formData: FormData
   );
   await db.update(prescriptions).set({ ...tracking, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
   revalidatePath("/data-lab");
-  redirect("/data-lab?medication=corrected");
 }
 
 export async function undoFilledRepeat(prescriptionId: string, formData: FormData) {
@@ -306,5 +302,4 @@ export async function undoFilledRepeat(prescriptionId: string, formData: FormDat
     updatedAt: new Date(),
   }).where(eq(prescriptions.id, prescription.id));
   revalidatePath("/data-lab");
-  redirect("/data-lab?medication=corrected");
 }
