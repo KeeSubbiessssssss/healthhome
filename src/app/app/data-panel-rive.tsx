@@ -19,10 +19,11 @@ export function DataPanelRive() {
   );
 
   useEffect(() => {
-    const panel = frameRef.current?.parentElement;
+    const frame = frameRef.current;
+    const panel = frame?.parentElement;
     if (!panel || !rive) return;
 
-    const canvas = frameRef.current?.querySelector("canvas");
+    const canvas = frame.querySelector("canvas");
     if (!canvas) return;
 
     const sendPointerEvent = (
@@ -40,9 +41,15 @@ export function DataPanelRive() {
 
     // The glass artwork's state machine has pointer listeners, but the canvas
     // sits below readable panel content. Forward the panel hover to that canvas.
-    const playHover = (event: PointerEvent) => sendPointerEvent("mouseover", event);
+    const playHover = (event: PointerEvent) => {
+      frame.setAttribute("data-hover", "true");
+      sendPointerEvent("mouseover", event);
+    };
     const trackPointer = (event: PointerEvent) => sendPointerEvent("mousemove", event);
-    const playIdle = (event: PointerEvent) => sendPointerEvent("mouseout", event);
+    const playIdle = (event: PointerEvent) => {
+      frame.removeAttribute("data-hover");
+      sendPointerEvent("mouseout", event);
+    };
 
     panel.addEventListener("pointerenter", playHover);
     panel.addEventListener("pointermove", trackPointer);
@@ -51,6 +58,7 @@ export function DataPanelRive() {
       panel.removeEventListener("pointerenter", playHover);
       panel.removeEventListener("pointermove", trackPointer);
       panel.removeEventListener("pointerleave", playIdle);
+      frame.removeAttribute("data-hover");
     };
   }, [rive]);
 
