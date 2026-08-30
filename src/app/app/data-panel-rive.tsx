@@ -8,8 +8,7 @@ export function DataPanelRive() {
   const { RiveComponent, rive } = useRive(
     {
       src: "/rive/translucent-window.riv",
-      artboard: "Default",
-      stateMachines: "Window",
+      stateMachine: "Default",
       autoplay: true,
       automaticallyHandleEvents: true,
       shouldDisableRiveListeners: false,
