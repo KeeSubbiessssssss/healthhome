@@ -450,7 +450,8 @@ export async function doseConsumed(prescriptionId: string, formData: FormData) {
       .from(dexcomConnections)
       .where(eq(dexcomConnections.householdMemberId, member.id))
       .limit(1);
-    if (connection?.status === "connected")
+    const suppliedReadingId = optionalText(formData, "dexcomReadingId");
+    if (connection?.status === "connected" && !suppliedReadingId)
       await syncDexcomConnection(connection.id);
     const manualBsl = optionalText(formData, "manualBslMgDl");
     if (manualBsl) {
@@ -466,10 +467,15 @@ export async function doseConsumed(prescriptionId: string, formData: FormData) {
         })
         .from(glucoseReadings)
         .where(
-          and(
-            eq(glucoseReadings.connectionId, connection.id),
-            lte(glucoseReadings.recordedAt, occurredAt),
-          ),
+          suppliedReadingId
+            ? and(
+                eq(glucoseReadings.connectionId, connection.id),
+                eq(glucoseReadings.id, suppliedReadingId),
+              )
+            : and(
+                eq(glucoseReadings.connectionId, connection.id),
+                lte(glucoseReadings.recordedAt, occurredAt),
+              ),
         )
         .orderBy(desc(glucoseReadings.recordedAt))
         .limit(1);
@@ -513,6 +519,7 @@ export async function doseConsumed(prescriptionId: string, formData: FormData) {
       occurredAt,
     });
   revalidatePath("/data-lab");
+  revalidatePath("/app");
 }
 
 export async function dayConsumed(prescriptionId: string) {

@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
-import { dexcomConnections, dexcomOAuthCredentials } from "@/db/schema";
+import { dexcomConnections, dexcomOAuthCredentials, glucoseReadings } from "@/db/schema";
 import { db } from "@/lib/db";
 import { syncDexcomConnection } from "@/lib/dexcom-sync";
 import { currentMember } from "@/lib/household";
@@ -41,7 +41,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const result = await syncDexcomConnection(connection.id);
-    if (background) return NextResponse.json({ ok: true, readingsReceived: result.readingsReceived });
+    if (background) {
+      const [reading] = await db
+        .select({
+          id: glucoseReadings.id,
+          valueMgDl: glucoseReadings.valueMgDl,
+          recordedAt: glucoseReadings.recordedAt,
+        })
+        .from(glucoseReadings)
+        .where(eq(glucoseReadings.connectionId, connection.id))
+        .orderBy(desc(glucoseReadings.recordedAt))
+        .limit(1);
+      return NextResponse.json({ ok: true, readingsReceived: result.readingsReceived, reading: reading ?? null });
+    }
     return NextResponse.redirect(new URL("/app?dexcom=synced", request.url), 303);
   } catch {
     if (background) return NextResponse.json({ ok: false, code: "sync-failed" }, { status: 502 });

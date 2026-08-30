@@ -873,9 +873,15 @@ export default async function DataLabPage({
                     change by a stray click.
                   </p>
                   <div className="tracking-actions">
-                    <button type="button" popoverTarget={ids.dose}>
-                      Dose Consumed
-                    </button>
+                    {script.type !== "injection" ? (
+                      <button type="button" popoverTarget={ids.dose}>
+                        Dose Consumed
+                      </button>
+                    ) : (
+                      <a className="action-link" href="/app">
+                        Record injectable dose on dashboard
+                      </a>
+                    )}
                     {script.supportsDayConsumption ? (
                       <button type="button" popoverTarget={ids.day}>
                         Day Consumed
@@ -925,7 +931,7 @@ export default async function DataLabPage({
                     </ol>
                   )}
                 </section>
-                <div
+                {script.type !== "injection" ? <div
                   id={ids.dose}
                   popover="auto"
                   className="medication-modal modal-action-confirm"
@@ -942,19 +948,6 @@ export default async function DataLabPage({
                     <ClosePopover target={ids.dose} />
                   </div>
                   <form action={doseAction} className="confirmation-form">
-                    {script.type === "injection" ? (
-                      <label>
-                        Units consumed
-                        <input
-                          name="unitsConsumed"
-                          required
-                          inputMode="decimal"
-                          min="0.01"
-                          step="0.01"
-                          placeholder="e.g. 8"
-                        />
-                      </label>
-                    ) : null}
                     <label>
                       Dose time
                       <input
@@ -987,7 +980,7 @@ export default async function DataLabPage({
                       <ClosePopover target={ids.dose} />
                     </div>
                   </form>
-                </div>
+                </div> : null}
                 {script.supportsDayConsumption ? (
                   <div
                     id={ids.day}
