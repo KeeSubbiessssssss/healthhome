@@ -2,3 +2,24 @@
   transform: scale(1.72);
   transform-origin: center;
 }
+
+.scaledPanelRive {
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.09);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
+}
+
+:global(.dashboard-metric):has(.scaledPanelRive),
+:global(.dashboard-panel):has(.scaledPanelRive),
+:global(.dashboard-glucose-status):has(.scaledPanelRive),
+:global(.injectable-dose-section):has(.scaledPanelRive) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
