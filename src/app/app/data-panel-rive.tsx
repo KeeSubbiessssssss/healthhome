@@ -3,7 +3,7 @@
 import { useRive } from "@rive-app/react-webgl2";
 
 export function DataPanelRive() {
-  const { RiveComponent } = useRive(
+  const { RiveComponent, rive } = useRive(
     {
       src: "/rive/translucent-window.riv",
       artboard: "Default",
@@ -16,7 +16,10 @@ export function DataPanelRive() {
 
   return (
     <div className="data-panel-rive" aria-hidden="true">
-      <RiveComponent />
+      <RiveComponent
+        onPointerEnter={() => rive?.play("WindowUp")}
+        onPointerLeave={() => rive?.play("WindowIdle")}
+      />
     </div>
   );
 }
