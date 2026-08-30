@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
 import { doseConsumed } from "@/app/data-lab/actions";
 
@@ -49,6 +49,7 @@ export function InjectableDoseSection({ scripts }: { scripts: InjectableScript[]
   const [reading, setReading] = useState<Reading | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [recording, startRecording] = useTransition();
 
   if (scripts.length === 0) return null;
 
@@ -77,6 +78,16 @@ export function InjectableDoseSection({ scripts }: { scripts: InjectableScript[]
     } finally {
       setLoadingId(null);
     }
+  }
+
+  function recordDose(formData: FormData) {
+    if (!activeScript) return;
+    startRecording(async () => {
+      await doseConsumed(activeScript.prescriptionId, formData);
+      setActiveScript(null);
+      setReading(null);
+      setError(null);
+    });
   }
 
   return (
@@ -118,10 +129,10 @@ export function InjectableDoseSection({ scripts }: { scripts: InjectableScript[]
             </div>
             {activeScript.tracksBslAtDose ? (
               <div className="injectable-reading">
-                {reading ? <><strong>{mmol(reading.valueMgDl)} mmol/L</strong><span>{reading.valueMgDl} mg/dL · Dexcom at {readingTime(reading.recordedAt)}</span></> : <span>{error ?? "No Dexcom reading was returned. Enter the BSL manually below."}</span>}
+                {reading ? <><strong>{mmol(reading.valueMgDl)} mmol/L</strong><span>Dexcom at {readingTime(reading.recordedAt)}</span></> : <span>{error ?? "No Dexcom reading was returned. Enter the BSL manually below."}</span>}
               </div>
             ) : null}
-            <form action={doseConsumed.bind(null, activeScript.prescriptionId)} className="confirmation-form">
+            <form action={recordDose} className="confirmation-form">
               <label>
                 Units consumed
                 <input name="unitsConsumed" required inputMode="decimal" min="0.01" step="0.01" placeholder="e.g. 8" autoFocus />
@@ -133,13 +144,13 @@ export function InjectableDoseSection({ scripts }: { scripts: InjectableScript[]
               {activeScript.tracksBslAtDose ? <>
                 {reading ? <input type="hidden" name="dexcomReadingId" value={reading.id} /> : null}
                 <label>
-                  Manual BSL override <span>mg/dL — replaces the Dexcom reading above</span>
-                  <input name="manualBslMgDl" inputMode="numeric" min="1" step="1" placeholder={reading ? String(reading.valueMgDl) : "e.g. 108"} required={!reading} />
+                  Manual BSL override <span>mmol/L — replaces the Dexcom reading above</span>
+                  <input name="manualBslMmol" inputMode="decimal" min="0.1" step="0.1" placeholder={reading ? mmol(reading.valueMgDl) : "e.g. 6.0"} required={!reading} />
                 </label>
               </> : null}
               <div className="modal-actions">
-                <button type="submit">Record dose</button>
-                <button type="button" className="modal-close" onClick={() => setActiveScript(null)}>Cancel</button>
+                <button type="submit" disabled={recording}>{recording ? "Recording dose…" : "Record dose"}</button>
+                <button type="button" className="modal-close" onClick={() => setActiveScript(null)} disabled={recording}>Cancel</button>
               </div>
             </form>
           </section>

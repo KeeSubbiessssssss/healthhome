@@ -453,11 +453,12 @@ export async function doseConsumed(prescriptionId: string, formData: FormData) {
     const suppliedReadingId = optionalText(formData, "dexcomReadingId");
     if (connection?.status === "connected" && !suppliedReadingId)
       await syncDexcomConnection(connection.id);
-    const manualBsl = optionalText(formData, "manualBslMgDl");
+    const manualBsl = optionalText(formData, "manualBslMmol");
     if (manualBsl) {
-      bslMgDl = Math.round(Number(manualBsl));
-      if (!Number.isFinite(bslMgDl) || bslMgDl <= 0)
-        throw new Error("Manual BSL must be a positive mg/dL value.");
+      const manualBslMmol = Number(manualBsl);
+      if (!Number.isFinite(manualBslMmol) || manualBslMmol <= 0)
+        throw new Error("Manual BSL must be a positive mmol/L value.");
+      bslMgDl = Math.round(manualBslMmol * 18);
       bslSource = "manual";
     } else if (connection) {
       const [reading] = await db

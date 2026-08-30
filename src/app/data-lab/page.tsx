@@ -961,14 +961,14 @@ export default async function DataLabPage({
                       <label>
                         Manual BSL override{" "}
                         <span>
-                          mg/dL — leave blank to use refreshed Dexcom reading
+                          mmol/L — leave blank to use refreshed Dexcom reading
                         </span>
                         <input
-                          name="manualBslMgDl"
-                          inputMode="numeric"
-                          min="1"
-                          step="1"
-                          placeholder="e.g. 108"
+                          name="manualBslMmol"
+                          inputMode="decimal"
+                          min="0.1"
+                          step="0.1"
+                          placeholder="e.g. 6.0"
                         />
                       </label>
                     ) : null}
