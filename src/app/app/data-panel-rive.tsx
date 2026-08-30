@@ -7,8 +7,9 @@ export function DataPanelRive() {
     {
       src: "/rive/translucent-window.riv",
       artboard: "Default",
-      animations: "WindowIdle",
+      stateMachines: "Window",
       autoplay: true,
+      automaticallyHandleEvents: true,
     },
     { shouldResizeCanvasToContainer: true },
   );
