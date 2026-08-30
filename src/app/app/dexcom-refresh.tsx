@@ -43,7 +43,7 @@ export function DexcomRefresh({ connected }: { connected: boolean }) {
 
   return <div className="dexcom-refresh" aria-live="polite">
     <button type="button" className="dashboard-link" onClick={() => void sync()} disabled={syncing}>{syncing ? "Refreshing Dexcom" : "Sync Dexcom"}</button>
-    {syncing ? <div className="dexcom-refresh-loader"><Rive className="dexcom-rive" src="/rive/liquid-loading-screen.riv" animations="loading" shouldDisableRiveListeners aria-label="Dexcom is refreshing" /><span>Dexcom refresh in progress</span></div> : null}
+    {syncing ? <div className="dexcom-refresh-loader"><Rive className="dexcom-rive" src="/rive/liquid-loading-screen.riv" artboard="refresh" stateMachine="SM" shouldDisableRiveListeners aria-label="Dexcom is refreshing" /><span>Dexcom refresh in progress</span></div> : null}
     {message ? <p>{message}</p> : null}
   </div>;
 }
