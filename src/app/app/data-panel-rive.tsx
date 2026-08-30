@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRive } from "@rive-app/react-webgl2";
+import { Fit, Layout, useRive } from "@rive-app/react-webgl2";
+import styles from "./data-panel-rive.module.css";
 
 export function DataPanelRive() {
   const frameRef = useRef<HTMLDivElement>(null);
@@ -10,6 +11,7 @@ export function DataPanelRive() {
       src: "/rive/translucent-window.riv",
       stateMachine: "Default",
       autoplay: true,
+      layout: new Layout({ fit: Fit.Cover }),
       automaticallyHandleEvents: true,
       shouldDisableRiveListeners: false,
     },
@@ -53,7 +55,7 @@ export function DataPanelRive() {
   }, [rive]);
 
   return (
-    <div ref={frameRef} className="data-panel-rive" aria-hidden="true">
+    <div ref={frameRef} className={`data-panel-rive ${styles.scaledPanelRive}`} aria-hidden="true">
       <RiveComponent />
     </div>
   );
