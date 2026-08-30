@@ -17,6 +17,7 @@
     "@neon/env": "^1.1.5",
     "@neondatabase/auth": "^0.5.0-beta",
     "@neondatabase/auth-ui": "^0.3.0-beta",
+    "@rive-app/react-webgl2": "^4.33.0",
     "drizzle-orm": "^0.45.2",
     "next": "16.3.3",
     "pg": "^8.23.0",
