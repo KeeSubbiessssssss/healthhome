@@ -21,8 +21,24 @@ export function DataPanelRive() {
     const panel = frameRef.current?.parentElement;
     if (!panel || !rive) return;
 
-    const playHover = () => rive.play("WindowUp");
-    const playIdle = () => rive.play("WindowIdle");
+    const canvas = frameRef.current?.querySelector("canvas");
+    if (!canvas) return;
+
+    const sendPointerEvent = (type: "mouseover" | "mouseout") => {
+      const bounds = canvas.getBoundingClientRect();
+      canvas.dispatchEvent(
+        new MouseEvent(type, {
+          bubbles: true,
+          clientX: bounds.left + bounds.width / 2,
+          clientY: bounds.top + bounds.height / 2,
+        }),
+      );
+    };
+
+    // The glass artwork's state machine has pointer listeners, but the canvas
+    // sits below readable panel content. Forward the panel hover to that canvas.
+    const playHover = () => sendPointerEvent("mouseover");
+    const playIdle = () => sendPointerEvent("mouseout");
 
     panel.addEventListener("pointerenter", playHover);
     panel.addEventListener("pointerleave", playIdle);
