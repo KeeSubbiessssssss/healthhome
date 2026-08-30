@@ -2,6 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 import { addMedication, dayConsumed, doseConsumed, filledRepeat } from "@/app/data-lab/actions";
+import { SaveMedicationButton } from "@/app/data-lab/submit-button";
 import { medications, prescriptions } from "@/db/schema";
 import { db } from "@/lib/db";
 import { currentMember, currentUser } from "@/lib/household";
@@ -25,7 +26,11 @@ function displayUnits(value: string | null) {
   return value === null ? "—" : Number(value).toFixed(2).replace(/\.00$/, "");
 }
 
-export default async function DataLabPage() {
+export default async function DataLabPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ medication?: string }>;
+}) {
   if (process.env.VERCEL_ENV === "production") {
     return <main className="data-lab-shell"><p className="eyebrow">HealthHome</p><h1>Data lab is available in Preview.</h1><p>Production never accepts test data.</p></main>;
   }
@@ -34,6 +39,7 @@ export default async function DataLabPage() {
   if (!user) redirect("/auth/sign-in");
   const member = await currentMember();
   if (!member) redirect("/onboarding");
+  const { medication } = await searchParams;
 
   const scripts = await db
     .select({
@@ -68,6 +74,7 @@ export default async function DataLabPage() {
       <p className="eyebrow">HealthHome · Preview only</p>
       <h1>Medication tracking data lab</h1>
       <p className="data-lab-intro">Enter physical units once. HealthHome calculates full doses and full days from those values, then keeps them in sync as you record consumption or refill a repeat.</p>
+      {medication === "saved" ? <p className="save-confirmation" role="status">Medication script saved. Its tracking card is below.</p> : null}
 
       <section className="data-lab-form">
         <h2>Add medication script</h2>
@@ -93,7 +100,7 @@ export default async function DataLabPage() {
             <p className="calculation-hint">Frequency is calculated from Doses Per Day. Total doses and full days are calculated from the units above.</p>
           </fieldset>
 
-          <button type="submit">Save Preview medication</button>
+          <SaveMedicationButton />
         </form>
       </section>
 

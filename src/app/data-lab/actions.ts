@@ -2,6 +2,7 @@
 
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { medications, prescriptions } from "@/db/schema";
 import { db } from "@/lib/db";
@@ -131,6 +132,7 @@ export async function addMedication(formData: FormData) {
   });
 
   revalidatePath("/data-lab");
+  redirect("/data-lab?medication=saved");
 }
 
 export async function doseConsumed(prescriptionId: string) {
