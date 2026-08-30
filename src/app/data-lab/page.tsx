@@ -151,6 +151,9 @@ export default async function DataLabPage({
 
   return (
     <main className="data-lab-shell">
+      <a className="dashboard-link dashboard-link-quiet" href="/app">
+        ← Home
+      </a>
       <p className="eyebrow">HealthHome · Preview only</p>
       <h1>Medication tracking data lab</h1>
       <p className="data-lab-intro">
