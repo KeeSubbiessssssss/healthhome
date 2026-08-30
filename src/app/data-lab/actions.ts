@@ -73,6 +73,7 @@ async function ownedPrescription(prescriptionId: string) {
       dosesPerDay: prescriptions.dosesPerDay,
       unitsLeft: prescriptions.unitsLeft,
       repeatsRemaining: prescriptions.repeatsRemaining,
+      repeatsAuthorized: prescriptions.repeatsAuthorized,
     })
     .from(prescriptions)
     .innerJoin(medications, eq(prescriptions.medicationId, medications.id))
@@ -87,6 +88,10 @@ async function ownedPrescription(prescriptionId: string) {
     throw new Error("This script needs positive unit and daily-dose values before it can be consumed.");
   }
   return { ...prescription, totalUnitsPerScript, unitsPerDose, dosesPerDay, unitsLeft };
+}
+
+function assertCorrectionConfirmed(formData: FormData) {
+  if (formData.get("confirmCorrection") !== "yes") throw new Error("Confirm the correction before changing medication tracking.");
 }
 
 async function ownedMedicationScript(prescriptionId: string) {
@@ -252,4 +257,54 @@ export async function filledRepeat(prescriptionId: string) {
     updatedAt: new Date(),
   }).where(eq(prescriptions.id, prescription.id));
   revalidatePath("/data-lab");
+}
+
+export async function undoDoseConsumed(prescriptionId: string, formData: FormData) {
+  assertCorrectionConfirmed(formData);
+  const prescription = await ownedPrescription(prescriptionId);
+  const tracking = trackingFromUnits(
+    Number(prescription.unitsLeft) + Number(prescription.unitsPerDose),
+    Number(prescription.unitsPerDose),
+    prescription.dosesPerDay,
+  );
+  await db.update(prescriptions).set({ ...tracking, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
+  revalidatePath("/data-lab");
+  redirect("/data-lab?medication=corrected");
+}
+
+export async function undoDayConsumed(prescriptionId: string, formData: FormData) {
+  assertCorrectionConfirmed(formData);
+  const prescription = await ownedPrescription(prescriptionId);
+  const unitsPerDay = Number(prescription.unitsPerDose) * prescription.dosesPerDay;
+  const tracking = trackingFromUnits(
+    Number(prescription.unitsLeft) + unitsPerDay,
+    Number(prescription.unitsPerDose),
+    prescription.dosesPerDay,
+  );
+  await db.update(prescriptions).set({ ...tracking, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
+  revalidatePath("/data-lab");
+  redirect("/data-lab?medication=corrected");
+}
+
+export async function undoFilledRepeat(prescriptionId: string, formData: FormData) {
+  assertCorrectionConfirmed(formData);
+  const prescription = await ownedPrescription(prescriptionId);
+  if (prescription.repeatsAuthorized === null || prescription.repeatsRemaining === null) throw new Error("This script needs repeat tracking before a filled repeat can be corrected.");
+  if (prescription.repeatsRemaining >= prescription.repeatsAuthorized) throw new Error("There is no filled repeat available to roll back.");
+  const unitsLeftAfterUndo = Number(prescription.unitsLeft) - Number(prescription.totalUnitsPerScript);
+  if (unitsLeftAfterUndo < -Number.EPSILON) {
+    throw new Error("This filled repeat cannot be rolled back because some of its units have already been consumed. Use Edit to set the actual units left instead.");
+  }
+  const tracking = trackingFromUnits(
+    unitsLeftAfterUndo,
+    Number(prescription.unitsPerDose),
+    prescription.dosesPerDay,
+  );
+  await db.update(prescriptions).set({
+    ...tracking,
+    repeatsRemaining: prescription.repeatsRemaining + 1,
+    updatedAt: new Date(),
+  }).where(eq(prescriptions.id, prescription.id));
+  revalidatePath("/data-lab");
+  redirect("/data-lab?medication=corrected");
 }
