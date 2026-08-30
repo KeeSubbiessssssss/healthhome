@@ -50,6 +50,13 @@
       "when": 1788090096434,
       "tag": "0006_gorgeous_silk_fever",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788091558089,
+      "tag": "0007_pale_the_spike",
+      "breakpoints": true
     }
   ]
 }

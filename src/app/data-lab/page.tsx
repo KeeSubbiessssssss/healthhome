@@ -77,7 +77,7 @@ function InjectableDosingToggle() {
   return (
     <script
       dangerouslySetInnerHTML={{
-        __html: `(() => { const apply = (form) => { const type = form.querySelector('select[name="type"]'); if (!type) return; const injectable = type.value === 'injection'; for (const name of ['unitsPerDose', 'dosesPerDay', 'refillAtDaysLeft', 'doseForm', 'doseStrength', 'supportsDayConsumption']) { const field = form.querySelector('[name="' + name + '"]'); if (field) field.disabled = injectable; } }; document.addEventListener('change', (event) => { if (event.target instanceof HTMLSelectElement && event.target.name === 'type') apply(event.target.form); }); document.querySelectorAll('form.medication-script-form').forEach(apply); })();`,
+        __html: `(() => { const setField = (form, name, hidden) => { const field = form.querySelector('[name="' + name + '"]'); if (!field) return; const label = field.closest('label'); if (label) label.hidden = hidden; field.disabled = hidden; }; const apply = (form) => { const type = form.querySelector('select[name="type"]'); const treatment = form.querySelector('select[name="treatmentOf"]'); if (!type) return; const injectable = type.value === 'injection'; for (const name of ['unitsPerDose', 'dosesPerDay', 'doseForm', 'doseStrength', 'supportsDayConsumption', 'refillAtDaysLeft']) setField(form, name, injectable); setField(form, 'refillAtUnitsLeft', !injectable); setField(form, 'treatmentOther', !treatment || treatment.value !== 'other'); }; document.addEventListener('change', (event) => { if (event.target instanceof HTMLSelectElement && (event.target.name === 'type' || event.target.name === 'treatmentOf')) apply(event.target.form); }); document.querySelectorAll('form.medication-script-form').forEach(apply); })();`,
       }}
     />
   );
@@ -121,6 +121,7 @@ export default async function DataLabPage({
       repeatsPerScript: prescriptions.repeatsAuthorized,
       scriptExpiresOn: prescriptions.scriptExpiresOn,
       refillAtDaysLeft: prescriptions.refillAtDaysLeft,
+      refillAtUnitsLeft: prescriptions.refillAtUnitsLeft,
       doseForm: prescriptions.doseForm,
       doseStrength: prescriptions.doseStrengthLabel,
       frequency: prescriptions.frequency,
@@ -284,6 +285,16 @@ export default async function DataLabPage({
                 placeholder="7"
               />
             </label>
+            <label>
+              Refill at <span>Units left</span>
+              <input
+                name="refillAtUnitsLeft"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
+                placeholder="e.g. 20"
+              />
+            </label>
           </fieldset>
           <fieldset>
             <legend>Doseing</legend>
@@ -383,9 +394,13 @@ export default async function DataLabPage({
               .filter((event) => event.prescriptionId === script.prescriptionId)
               .slice(0, 5);
             const needsRefill =
-              script.refillAtDaysLeft !== null &&
-              script.daysLeft !== null &&
-              script.daysLeft <= script.refillAtDaysLeft;
+              script.type === "injection"
+                ? script.refillAtUnitsLeft !== null &&
+                  script.unitsLeft !== null &&
+                  Number(script.unitsLeft) <= Number(script.refillAtUnitsLeft)
+                : script.refillAtDaysLeft !== null &&
+                  script.daysLeft !== null &&
+                  script.daysLeft <= script.refillAtDaysLeft;
             return (
               <article className="script-card" key={script.prescriptionId}>
                 <header>
@@ -560,6 +575,16 @@ export default async function DataLabPage({
                           min="0"
                           step="1"
                           defaultValue={script.refillAtDaysLeft ?? ""}
+                        />
+                      </label>
+                      <label>
+                        Refill at <span>Units left</span>
+                        <input
+                          name="refillAtUnitsLeft"
+                          inputMode="decimal"
+                          min="0.01"
+                          step="0.01"
+                          defaultValue={script.refillAtUnitsLeft ?? ""}
                         />
                       </label>
                     </fieldset>
@@ -807,7 +832,11 @@ export default async function DataLabPage({
                   </div>
                   <div>
                     <dt>Refill at</dt>
-                    <dd>{displayNumber(script.refillAtDaysLeft)} days left</dd>
+                    <dd>
+                      {script.type === "injection"
+                        ? `${displayUnits(script.refillAtUnitsLeft)} units left`
+                        : `${displayNumber(script.refillAtDaysLeft)} days left`}
+                    </dd>
                   </div>
                 </dl>
                 <section className="dosing-section">

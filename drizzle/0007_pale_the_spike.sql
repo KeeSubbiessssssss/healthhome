@@ -1,0 +1,1 @@
+ALTER TABLE "prescriptions" ADD COLUMN "refill_at_units_left" numeric(10, 2);

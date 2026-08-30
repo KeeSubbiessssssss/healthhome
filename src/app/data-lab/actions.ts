@@ -230,6 +230,9 @@ function medicationScriptValues(formData: FormData) {
   const refillAtDaysLeft = isInjection
     ? null
     : wholeNumber(formData, "refillAtDaysLeft", true);
+  const refillAtUnitsLeft = isInjection
+    ? positiveDecimal(formData, "refillAtUnitsLeft")
+    : null;
   const doseForm = isInjection
     ? "injection"
     : medicationForm(formData, "doseForm");
@@ -252,6 +255,7 @@ function medicationScriptValues(formData: FormData) {
     dosesPerDay,
     repeatsPerScript,
     refillAtDaysLeft,
+    refillAtUnitsLeft,
     doseForm,
     doseStrength,
     scriptExpiresOn,
@@ -310,6 +314,7 @@ export async function addMedication(formData: FormData) {
         totalDosesPerScript: tracking.dosesLeft,
         totalDaysPerScript: tracking.daysLeft,
         refillAtDaysLeft: values.refillAtDaysLeft,
+        refillAtUnitsLeft: values.refillAtUnitsLeft,
         dosesLeft: tracking.dosesLeft,
         daysLeft: tracking.daysLeft,
         repeatsAuthorized: values.repeatsPerScript,
@@ -376,6 +381,7 @@ export async function updateMedication(
         totalDosesPerScript: tracking.dosesLeft,
         totalDaysPerScript: tracking.daysLeft,
         refillAtDaysLeft: values.refillAtDaysLeft,
+        refillAtUnitsLeft: values.refillAtUnitsLeft,
         dosesLeft: tracking.dosesLeft,
         daysLeft: tracking.daysLeft,
         repeatsAuthorized: values.repeatsPerScript,

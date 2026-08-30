@@ -170,6 +170,10 @@ export const prescriptions = pgTable(
     totalDosesPerScript: integer("total_doses_per_script"),
     totalDaysPerScript: integer("total_days_per_script"),
     refillAtDaysLeft: integer("refill_at_days_left"),
+    refillAtUnitsLeft: numeric("refill_at_units_left", {
+      precision: 10,
+      scale: 2,
+    }),
     dosesLeft: integer("doses_left"),
     daysLeft: integer("days_left"),
     repeatsAuthorized: integer("repeats_authorized"),
