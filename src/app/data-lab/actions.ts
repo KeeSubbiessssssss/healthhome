@@ -1,15 +1,19 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, lte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
+  dexcomConnections,
+  glucoseReadings,
   medicationActivityEvents,
+  medicationDoseLogs,
   medications,
   prescriptions,
 } from "@/db/schema";
 import { db } from "@/lib/db";
+import { syncDexcomConnection } from "@/lib/dexcom-sync";
 import { currentMember } from "@/lib/household";
 
 const medicationForms = [
@@ -105,10 +109,12 @@ function medicationTreatment(formData: FormData) {
 
 function trackingFromUnits(
   unitsLeft: number,
-  unitsPerDose: number,
-  dosesPerDay: number,
+  unitsPerDose: number | null,
+  dosesPerDay: number | null,
 ) {
   const safeUnits = Math.max(0, unitsLeft);
+  if (!unitsPerDose || !dosesPerDay)
+    return { unitsLeft: safeUnits.toFixed(2), dosesLeft: null, daysLeft: null };
   const dosesLeft = Math.floor((safeUnits + Number.EPSILON) / unitsPerDose);
   const daysLeft = Math.floor(dosesLeft / dosesPerDay);
   return { unitsLeft: safeUnits.toFixed(2), dosesLeft, daysLeft };
@@ -119,10 +125,12 @@ async function ownedPrescription(prescriptionId: string) {
   const [prescription] = await db
     .select({
       id: prescriptions.id,
+      form: medications.form,
       totalUnitsPerScript: prescriptions.totalUnitsPerScript,
       unitsPerDose: prescriptions.unitsPerDose,
       dosesPerDay: prescriptions.dosesPerDay,
       supportsDayConsumption: prescriptions.supportsDayConsumption,
+      tracksBslAtDose: prescriptions.tracksBslAtDose,
       unitsLeft: prescriptions.unitsLeft,
       repeatsRemaining: prescriptions.repeatsRemaining,
       repeatsAuthorized: prescriptions.repeatsAuthorized,
@@ -140,21 +148,12 @@ async function ownedPrescription(prescriptionId: string) {
   if (!prescription) throw new Error("Medication script was not found.");
   const { totalUnitsPerScript, unitsPerDose, dosesPerDay, unitsLeft } =
     prescription;
-  if (
-    totalUnitsPerScript === null ||
-    unitsPerDose === null ||
-    dosesPerDay === null ||
-    unitsLeft === null
-  ) {
+  if (totalUnitsPerScript === null || unitsLeft === null) {
     throw new Error(
       "This script needs the units-based tracking fields before it can be consumed.",
     );
   }
-  if (
-    Number(totalUnitsPerScript) <= 0 ||
-    Number(unitsPerDose) <= 0 ||
-    dosesPerDay <= 0
-  ) {
+  if (Number(totalUnitsPerScript) <= 0) {
     throw new Error(
       "This script needs positive unit and daily-dose values before it can be consumed.",
     );
@@ -205,35 +204,43 @@ async function recordActivity(
   repeatsDelta: number,
   summary: string,
 ) {
-  await db
-    .insert(medicationActivityEvents)
-    .values({
-      prescriptionId,
-      householdMemberId: memberId,
-      eventType,
-      unitsDelta,
-      repeatsDelta,
-      summary,
-    });
+  await db.insert(medicationActivityEvents).values({
+    prescriptionId,
+    householdMemberId: memberId,
+    eventType,
+    unitsDelta,
+    repeatsDelta,
+    summary,
+  });
 }
 
 function medicationScriptValues(formData: FormData) {
   const pharmaceuticalName = requiredText(formData, "pharmaceuticalName");
   const streetName = requiredText(formData, "streetName");
   const type = medicationForm(formData, "type");
+  const isInjection = type === "injection";
   const treatment = medicationTreatment(formData);
   const strength = requiredText(formData, "strength");
   const totalUnitsPerScript = positiveDecimal(formData, "totalUnitsPerScript");
-  const unitsPerDose = positiveDecimal(formData, "unitsPerDose");
-  const dosesPerDay = wholeNumber(formData, "dosesPerDay");
+  const unitsPerDose = isInjection
+    ? null
+    : positiveDecimal(formData, "unitsPerDose");
+  const dosesPerDay = isInjection ? null : wholeNumber(formData, "dosesPerDay");
   const repeatsPerScript = wholeNumber(formData, "repeatsPerScript", true);
-  const refillAtDaysLeft = wholeNumber(formData, "refillAtDaysLeft", true);
-  const doseForm = medicationForm(formData, "doseForm");
+  const refillAtDaysLeft = isInjection
+    ? null
+    : wholeNumber(formData, "refillAtDaysLeft", true);
+  const doseForm = isInjection
+    ? "injection"
+    : medicationForm(formData, "doseForm");
   const doseStrength = optionalText(formData, "doseStrength");
   const scriptExpiresOn = optionalText(formData, "scriptExpiresOn");
   const supportsDayConsumption =
-    formData.get("supportsDayConsumption") === "yes";
-  const frequency = `${dosesPerDay} ${dosesPerDay === 1 ? "dose" : "doses"} per day`;
+    !isInjection && formData.get("supportsDayConsumption") === "yes";
+  const tracksBslAtDose = formData.get("tracksBslAtDose") === "yes";
+  const frequency = isInjection
+    ? "Individual doses logged as used"
+    : `${dosesPerDay} ${dosesPerDay === 1 ? "dose" : "doses"} per day`;
   return {
     pharmaceuticalName,
     streetName,
@@ -249,6 +256,7 @@ function medicationScriptValues(formData: FormData) {
     doseStrength,
     scriptExpiresOn,
     supportsDayConsumption,
+    tracksBslAtDose,
     frequency,
   };
 }
@@ -258,10 +266,13 @@ export async function addMedication(formData: FormData) {
   const values = medicationScriptValues(formData);
   const tracking = trackingFromUnits(
     Number(values.totalUnitsPerScript),
-    Number(values.unitsPerDose),
+    values.unitsPerDose === null ? null : Number(values.unitsPerDose),
     values.dosesPerDay,
   );
-  if (tracking.dosesLeft === 0 || tracking.daysLeft === 0)
+  if (
+    values.dosesPerDay &&
+    (tracking.dosesLeft === 0 || tracking.daysLeft === 0)
+  )
     throw new Error(
       "Total units must cover at least one full day at the chosen dose and doses per day.",
     );
@@ -294,6 +305,7 @@ export async function addMedication(formData: FormData) {
         unitsPerDose: values.unitsPerDose,
         dosesPerDay: values.dosesPerDay,
         supportsDayConsumption: values.supportsDayConsumption,
+        tracksBslAtDose: values.tracksBslAtDose,
         unitsLeft: tracking.unitsLeft,
         totalDosesPerScript: tracking.dosesLeft,
         totalDaysPerScript: tracking.daysLeft,
@@ -304,16 +316,14 @@ export async function addMedication(formData: FormData) {
         repeatsRemaining: values.repeatsPerScript,
       })
       .returning({ id: prescriptions.id });
-    await tx
-      .insert(medicationActivityEvents)
-      .values({
-        prescriptionId: prescription.id,
-        householdMemberId: member.id,
-        eventType: "script_created",
-        unitsDelta: tracking.unitsLeft,
-        repeatsDelta: values.repeatsPerScript,
-        summary: "Medication script created",
-      });
+    await tx.insert(medicationActivityEvents).values({
+      prescriptionId: prescription.id,
+      householdMemberId: member.id,
+      eventType: "script_created",
+      unitsDelta: tracking.unitsLeft,
+      repeatsDelta: values.repeatsPerScript,
+      summary: "Medication script created",
+    });
   });
 
   revalidatePath("/data-lab");
@@ -332,7 +342,7 @@ export async function updateMedication(
     throw new Error("Repeats left cannot be higher than repeats per script.");
   const tracking = trackingFromUnits(
     Number(unitsLeft),
-    Number(values.unitsPerDose),
+    values.unitsPerDose === null ? null : Number(values.unitsPerDose),
     values.dosesPerDay,
   );
 
@@ -361,6 +371,7 @@ export async function updateMedication(
         unitsPerDose: values.unitsPerDose,
         dosesPerDay: values.dosesPerDay,
         supportsDayConsumption: values.supportsDayConsumption,
+        tracksBslAtDose: values.tracksBslAtDose,
         unitsLeft: tracking.unitsLeft,
         totalDosesPerScript: tracking.dosesLeft,
         totalDaysPerScript: tracking.daysLeft,
@@ -407,15 +418,70 @@ export async function archiveMedication(
   revalidatePath("/data-lab");
 }
 
-export async function doseConsumed(prescriptionId: string) {
+export async function doseConsumed(prescriptionId: string, formData: FormData) {
   const prescription = await ownedPrescription(prescriptionId);
   const unitsLeft = Number(prescription.unitsLeft);
-  const unitsPerDose = Number(prescription.unitsPerDose);
+  const unitsPerDose =
+    prescription.form === "injection"
+      ? Number(positiveDecimal(formData, "unitsConsumed"))
+      : Number(prescription.unitsPerDose);
+  if (!Number.isFinite(unitsPerDose) || unitsPerDose <= 0)
+    throw new Error(
+      "This medication needs a valid units-per-dose value before it can be consumed.",
+    );
   if (unitsLeft + Number.EPSILON < unitsPerDose)
     throw new Error("There are not enough units left for a full dose.");
+  const occurredAt = new Date(requiredText(formData, "occurredAt"));
+  if (Number.isNaN(occurredAt.getTime()))
+    throw new Error("Choose a valid dose time.");
+  let bslMgDl: number | null = null;
+  let bslSource: "dexcom" | "manual" | null = null;
+  let glucoseReadingId: string | null = null;
+  if (prescription.tracksBslAtDose) {
+    const member = await previewMember();
+    const [connection] = await db
+      .select()
+      .from(dexcomConnections)
+      .where(eq(dexcomConnections.householdMemberId, member.id))
+      .limit(1);
+    if (connection?.status === "connected")
+      await syncDexcomConnection(connection.id);
+    const manualBsl = optionalText(formData, "manualBslMgDl");
+    if (manualBsl) {
+      bslMgDl = Math.round(Number(manualBsl));
+      if (!Number.isFinite(bslMgDl) || bslMgDl <= 0)
+        throw new Error("Manual BSL must be a positive mg/dL value.");
+      bslSource = "manual";
+    } else if (connection) {
+      const [reading] = await db
+        .select({
+          id: glucoseReadings.id,
+          valueMgDl: glucoseReadings.valueMgDl,
+        })
+        .from(glucoseReadings)
+        .where(
+          and(
+            eq(glucoseReadings.connectionId, connection.id),
+            lte(glucoseReadings.recordedAt, occurredAt),
+          ),
+        )
+        .orderBy(desc(glucoseReadings.recordedAt))
+        .limit(1);
+      if (!reading)
+        throw new Error(
+          "No synced Dexcom reading is available for that time. Enter the BSL manually to log this dose.",
+        );
+      bslMgDl = reading.valueMgDl;
+      bslSource = "dexcom";
+      glucoseReadingId = reading.id;
+    } else
+      throw new Error(
+        "Connect Dexcom or enter the BSL manually before logging this dose.",
+      );
+  }
   const tracking = trackingFromUnits(
     unitsLeft - unitsPerDose,
-    unitsPerDose,
+    prescription.form === "injection" ? null : unitsPerDose,
     prescription.dosesPerDay,
   );
   await db
@@ -430,6 +496,16 @@ export async function doseConsumed(prescriptionId: string) {
     0,
     "One dose consumed",
   );
+  if (prescription.form === "injection" || prescription.tracksBslAtDose)
+    await db.insert(medicationDoseLogs).values({
+      prescriptionId: prescription.id,
+      householdMemberId: prescription.memberId,
+      glucoseReadingId,
+      unitsConsumed: unitsPerDose.toFixed(2),
+      bslMgDl,
+      bslSource,
+      occurredAt,
+    });
   revalidatePath("/data-lab");
 }
 
@@ -439,6 +515,8 @@ export async function dayConsumed(prescriptionId: string) {
     throw new Error(
       "This medication is set to be consumed dose-by-dose, not by day.",
     );
+  if (prescription.unitsPerDose === null || prescription.dosesPerDay === null)
+    throw new Error("This medication does not have a scheduled day dose.");
   const unitsLeft = Number(prescription.unitsLeft);
   const unitsPerDay =
     Number(prescription.unitsPerDose) * prescription.dosesPerDay;
@@ -528,6 +606,8 @@ export async function undoDayConsumed(
     throw new Error(
       "This medication is set to be consumed dose-by-dose, not by day.",
     );
+  if (prescription.unitsPerDose === null || prescription.dosesPerDay === null)
+    throw new Error("This medication does not have a scheduled day dose.");
   const unitsPerDay =
     Number(prescription.unitsPerDose) * prescription.dosesPerDay;
   const tracking = trackingFromUnits(

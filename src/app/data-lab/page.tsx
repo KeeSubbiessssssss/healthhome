@@ -73,6 +73,16 @@ function ClosePopover({ target }: { target: string }) {
   );
 }
 
+function InjectableDosingToggle() {
+  return (
+    <script
+      dangerouslySetInnerHTML={{
+        __html: `(() => { const apply = (form) => { const type = form.querySelector('select[name="type"]'); if (!type) return; const injectable = type.value === 'injection'; for (const name of ['unitsPerDose', 'dosesPerDay', 'refillAtDaysLeft', 'doseForm', 'doseStrength', 'supportsDayConsumption']) { const field = form.querySelector('[name="' + name + '"]'); if (field) field.disabled = injectable; } }; document.addEventListener('change', (event) => { if (event.target instanceof HTMLSelectElement && event.target.name === 'type') apply(event.target.form); }); document.querySelectorAll('form.medication-script-form').forEach(apply); })();`,
+      }}
+    />
+  );
+}
+
 export default async function DataLabPage({
   searchParams,
 }: {
@@ -105,6 +115,7 @@ export default async function DataLabPage({
       unitsPerDose: prescriptions.unitsPerDose,
       dosesPerDay: prescriptions.dosesPerDay,
       supportsDayConsumption: prescriptions.supportsDayConsumption,
+      tracksBslAtDose: prescriptions.tracksBslAtDose,
       totalDosesPerScript: prescriptions.totalDosesPerScript,
       totalDaysPerScript: prescriptions.totalDaysPerScript,
       repeatsPerScript: prescriptions.repeatsAuthorized,
@@ -151,6 +162,7 @@ export default async function DataLabPage({
 
   return (
     <main className="data-lab-shell">
+      <InjectableDosingToggle />
       <a className="dashboard-link dashboard-link-quiet" href="/app">
         ← Home
       </a>
@@ -309,6 +321,14 @@ export default async function DataLabPage({
               />
               Record consumption by full day
               <span>Clear this for medication taken only as needed.</span>
+            </label>
+            <label>
+              <input name="tracksBslAtDose" type="checkbox" value="yes" />
+              Track BSL with each dose
+              <span>
+                Refreshes Dexcom before recording. You can override the BSL
+                manually.
+              </span>
             </label>
             <p className="calculation-hint">
               Frequency is calculated from Doses Per Day. Total doses and full
@@ -587,6 +607,19 @@ export default async function DataLabPage({
                         Record consumption by full day
                         <span>
                           Clear this for medication taken only as needed.
+                        </span>
+                      </label>
+                      <label>
+                        <input
+                          name="tracksBslAtDose"
+                          type="checkbox"
+                          value="yes"
+                          defaultChecked={script.tracksBslAtDose}
+                        />
+                        Track BSL with each dose
+                        <span>
+                          Refreshes Dexcom before recording. You can override
+                          the BSL manually.
                         </span>
                       </label>
                       <label>
@@ -880,6 +913,43 @@ export default async function DataLabPage({
                     <ClosePopover target={ids.dose} />
                   </div>
                   <form action={doseAction} className="confirmation-form">
+                    {script.type === "injection" ? (
+                      <label>
+                        Units consumed
+                        <input
+                          name="unitsConsumed"
+                          required
+                          inputMode="decimal"
+                          min="0.01"
+                          step="0.01"
+                          placeholder="e.g. 8"
+                        />
+                      </label>
+                    ) : null}
+                    <label>
+                      Dose time
+                      <input
+                        name="occurredAt"
+                        type="datetime-local"
+                        required
+                        defaultValue={new Date().toISOString().slice(0, 16)}
+                      />
+                    </label>
+                    {script.tracksBslAtDose ? (
+                      <label>
+                        Manual BSL override{" "}
+                        <span>
+                          mg/dL — leave blank to use refreshed Dexcom reading
+                        </span>
+                        <input
+                          name="manualBslMgDl"
+                          inputMode="numeric"
+                          min="1"
+                          step="1"
+                          placeholder="e.g. 108"
+                        />
+                      </label>
+                    ) : null}
                     <div className="modal-actions">
                       <SaveMedicationButton
                         idleLabel="Record dose"

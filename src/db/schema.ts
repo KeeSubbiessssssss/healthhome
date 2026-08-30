@@ -31,6 +31,10 @@ export const medicationTreatment = pgEnum("medication_treatment", [
   "cholesterol",
   "other",
 ]);
+export const medicationBslSource = pgEnum("medication_bsl_source", [
+  "dexcom",
+  "manual",
+]);
 export const inventoryEventType = pgEnum("inventory_event_type", [
   "received",
   "consumed",
@@ -161,6 +165,7 @@ export const prescriptions = pgTable(
     supportsDayConsumption: boolean("supports_day_consumption")
       .notNull()
       .default(true),
+    tracksBslAtDose: boolean("tracks_bsl_at_dose").notNull().default(false),
     unitsLeft: numeric("units_left", { precision: 10, scale: 2 }),
     totalDosesPerScript: integer("total_doses_per_script"),
     totalDaysPerScript: integer("total_days_per_script"),
@@ -208,6 +213,43 @@ export const medicationActivityEvents = pgTable(
     index("medication_activity_events_prescription_created_idx").on(
       table.prescriptionId,
       table.createdAt,
+    ),
+  ],
+);
+
+export const medicationDoseLogs = pgTable(
+  "medication_dose_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    prescriptionId: uuid("prescription_id")
+      .notNull()
+      .references(() => prescriptions.id, { onDelete: "cascade" }),
+    householdMemberId: uuid("household_member_id").references(
+      () => householdMembers.id,
+      { onDelete: "set null" },
+    ),
+    glucoseReadingId: uuid("glucose_reading_id").references(
+      () => glucoseReadings.id,
+      { onDelete: "set null" },
+    ),
+    unitsConsumed: numeric("units_consumed", {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+    bslMgDl: integer("bsl_mg_dl"),
+    bslSource: medicationBslSource("bsl_source"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("medication_dose_logs_prescription_occurred_idx").on(
+      table.prescriptionId,
+      table.occurredAt,
+    ),
+    index("medication_dose_logs_glucose_reading_idx").on(
+      table.glucoseReadingId,
     ),
   ],
 );

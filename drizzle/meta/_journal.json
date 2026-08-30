@@ -43,6 +43,13 @@
       "when": 1788088945028,
       "tag": "0005_milky_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788090096434,
+      "tag": "0006_gorgeous_silk_fever",
+      "breakpoints": true
     }
   ]
 }
