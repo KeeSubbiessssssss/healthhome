@@ -22,7 +22,7 @@ function LiquidLoadingRive({ progress }: { progress: number }) {
     }
   }, [progress, rive]);
 
-  return <RiveComponent className="dexcom-rive" aria-label="Dexcom is refreshing" />;
+  return <div className="dexcom-rive-frame"><RiveComponent className="dexcom-rive" aria-label="Dexcom is refreshing" /></div>;
 }
 
 export function DexcomRefresh({ connected }: { connected: boolean }) {
