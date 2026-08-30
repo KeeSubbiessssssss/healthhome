@@ -49,15 +49,22 @@ function medicationForm(formData: FormData, name: string) {
   return value as (typeof medicationForms)[number];
 }
 
+function trackingFromUnits(unitsLeft: number, unitsPerDose: number, dosesPerDay: number) {
+  const safeUnits = Math.max(0, unitsLeft);
+  const dosesLeft = Math.floor((safeUnits + Number.EPSILON) / unitsPerDose);
+  const daysLeft = Math.floor(dosesLeft / dosesPerDay);
+  return { unitsLeft: safeUnits.toFixed(2), dosesLeft, daysLeft };
+}
+
 async function ownedPrescription(prescriptionId: string) {
   const member = await previewMember();
   const [prescription] = await db
     .select({
       id: prescriptions.id,
-      totalDosesPerScript: prescriptions.totalDosesPerScript,
-      totalDaysPerScript: prescriptions.totalDaysPerScript,
-      dosesLeft: prescriptions.dosesLeft,
-      daysLeft: prescriptions.daysLeft,
+      totalUnitsPerScript: prescriptions.totalUnitsPerScript,
+      unitsPerDose: prescriptions.unitsPerDose,
+      dosesPerDay: prescriptions.dosesPerDay,
+      unitsLeft: prescriptions.unitsLeft,
       repeatsRemaining: prescriptions.repeatsRemaining,
     })
     .from(prescriptions)
@@ -65,7 +72,14 @@ async function ownedPrescription(prescriptionId: string) {
     .where(and(eq(prescriptions.id, prescriptionId), eq(medications.householdId, member.householdId), eq(prescriptions.isActive, true)))
     .limit(1);
   if (!prescription) throw new Error("Medication script was not found.");
-  return prescription;
+  const { totalUnitsPerScript, unitsPerDose, dosesPerDay, unitsLeft } = prescription;
+  if (totalUnitsPerScript === null || unitsPerDose === null || dosesPerDay === null || unitsLeft === null) {
+    throw new Error("This script needs the units-based tracking fields before it can be consumed.");
+  }
+  if (Number(totalUnitsPerScript) <= 0 || Number(unitsPerDose) <= 0 || dosesPerDay <= 0) {
+    throw new Error("This script needs positive unit and daily-dose values before it can be consumed.");
+  }
+  return { ...prescription, totalUnitsPerScript, unitsPerDose, dosesPerDay, unitsLeft };
 }
 
 export async function addMedication(formData: FormData) {
@@ -74,14 +88,16 @@ export async function addMedication(formData: FormData) {
   const streetName = requiredText(formData, "streetName");
   const type = medicationForm(formData, "type");
   const strength = requiredText(formData, "strength");
-  const totalDosesPerScript = wholeNumber(formData, "totalDosesPerScript");
-  const totalDaysPerScript = wholeNumber(formData, "totalDaysPerScript");
+  const totalUnitsPerScript = positiveDecimal(formData, "totalUnitsPerScript");
+  const unitsPerDose = positiveDecimal(formData, "unitsPerDose");
+  const dosesPerDay = wholeNumber(formData, "dosesPerDay");
   const repeatsPerScript = wholeNumber(formData, "repeatsPerScript", true);
   const refillAtDaysLeft = wholeNumber(formData, "refillAtDaysLeft", true);
-  const doseAmount = positiveDecimal(formData, "doseAmount");
   const doseForm = medicationForm(formData, "doseForm");
-  const doseStrength = requiredText(formData, "doseStrength");
-  const frequency = requiredText(formData, "frequency");
+  const doseStrength = optionalText(formData, "doseStrength");
+  const tracking = trackingFromUnits(Number(totalUnitsPerScript), Number(unitsPerDose), dosesPerDay);
+  if (tracking.dosesLeft === 0 || tracking.daysLeft === 0) throw new Error("Total units must cover at least one full day at the chosen dose and doses per day.");
+  const frequency = `${dosesPerDay} ${dosesPerDay === 1 ? "dose" : "doses"} per day`;
 
   await db.transaction(async (tx) => {
     const [medication] = await tx.insert(medications).values({
@@ -95,16 +111,20 @@ export async function addMedication(formData: FormData) {
     await tx.insert(prescriptions).values({
       medicationId: medication.id,
       householdMemberId: member.id,
-      doseAmount,
+      doseAmount: unitsPerDose,
       doseForm,
       doseStrengthLabel: doseStrength,
       frequency,
       scriptExpiresOn: optionalText(formData, "scriptExpiresOn"),
-      totalDosesPerScript,
-      totalDaysPerScript,
+      totalUnitsPerScript,
+      unitsPerDose,
+      dosesPerDay,
+      unitsLeft: tracking.unitsLeft,
+      totalDosesPerScript: tracking.dosesLeft,
+      totalDaysPerScript: tracking.daysLeft,
       refillAtDaysLeft,
-      dosesLeft: totalDosesPerScript,
-      daysLeft: totalDaysPerScript,
+      dosesLeft: tracking.dosesLeft,
+      daysLeft: tracking.daysLeft,
       repeatsAuthorized: repeatsPerScript,
       repeatsRemaining: repeatsPerScript,
     });
@@ -115,25 +135,30 @@ export async function addMedication(formData: FormData) {
 
 export async function doseConsumed(prescriptionId: string) {
   const prescription = await ownedPrescription(prescriptionId);
-  if (!prescription.dosesLeft || prescription.dosesLeft <= 0) throw new Error("There are no doses left to consume.");
-  await db.update(prescriptions).set({ dosesLeft: prescription.dosesLeft - 1, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
+  const unitsLeft = Number(prescription.unitsLeft);
+  const unitsPerDose = Number(prescription.unitsPerDose);
+  if (unitsLeft + Number.EPSILON < unitsPerDose) throw new Error("There are not enough units left for a full dose.");
+  const tracking = trackingFromUnits(unitsLeft - unitsPerDose, unitsPerDose, prescription.dosesPerDay);
+  await db.update(prescriptions).set({ ...tracking, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
   revalidatePath("/data-lab");
 }
 
 export async function dayConsumed(prescriptionId: string) {
   const prescription = await ownedPrescription(prescriptionId);
-  if (!prescription.daysLeft || prescription.daysLeft <= 0) throw new Error("There are no days left to consume.");
-  await db.update(prescriptions).set({ daysLeft: prescription.daysLeft - 1, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
+  const unitsLeft = Number(prescription.unitsLeft);
+  const unitsPerDay = Number(prescription.unitsPerDose) * prescription.dosesPerDay;
+  if (unitsLeft + Number.EPSILON < unitsPerDay) throw new Error("There are not enough units left for a full day of doses.");
+  const tracking = trackingFromUnits(unitsLeft - unitsPerDay, Number(prescription.unitsPerDose), prescription.dosesPerDay);
+  await db.update(prescriptions).set({ ...tracking, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
   revalidatePath("/data-lab");
 }
 
 export async function filledRepeat(prescriptionId: string) {
   const prescription = await ownedPrescription(prescriptionId);
   if (!prescription.repeatsRemaining || prescription.repeatsRemaining <= 0) throw new Error("There are no repeats left to fill.");
-  if (!prescription.totalDosesPerScript || !prescription.totalDaysPerScript) throw new Error("This script is missing its dose or day totals.");
+  const tracking = trackingFromUnits(Number(prescription.unitsLeft) + Number(prescription.totalUnitsPerScript), Number(prescription.unitsPerDose), prescription.dosesPerDay);
   await db.update(prescriptions).set({
-    dosesLeft: (prescription.dosesLeft || 0) + prescription.totalDosesPerScript,
-    daysLeft: (prescription.daysLeft || 0) + prescription.totalDaysPerScript,
+    ...tracking,
     repeatsRemaining: prescription.repeatsRemaining - 1,
     updatedAt: new Date(),
   }).where(eq(prescriptions.id, prescription.id));
