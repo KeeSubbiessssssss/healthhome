@@ -7,6 +7,8 @@ import { decryptDexcomToken, dexcomConfig, encryptDexcomToken } from "@/lib/dexc
 type DexcomEgv = { recordId?: string; systemTime?: string; value?: number; trendRate?: number | null };
 type DexcomResponse = { records?: DexcomEgv[] };
 type DexcomDataRange = { egvs?: { start?: { systemTime?: string }; end?: { systemTime?: string } } };
+export type DexcomSyncProgress = { percent: number; message: string };
+type ProgressReporter = (progress: DexcomSyncProgress) => void | Promise<void>;
 
 export class DexcomSyncError extends Error {
   constructor(readonly code: string, readonly detail = "Dexcom rejected the glucose-reading request.") {
@@ -25,15 +27,17 @@ function dexcomRequestTime(date: Date) {
   return date.toISOString().replace(/\.\d{3}Z$/, "");
 }
 
-export async function syncDexcomConnection(connectionId: string) {
+export async function syncDexcomConnection(connectionId: string, reportProgress: ProgressReporter = () => {}) {
   const [connection] = await db.select().from(dexcomConnections).where(eq(dexcomConnections.id, connectionId)).limit(1);
   const [credentials] = await db.select().from(dexcomOAuthCredentials).where(eq(dexcomOAuthCredentials.connectionId, connectionId)).limit(1);
   if (!connection || !credentials) throw new DexcomSyncError("needs-reauth", "Dexcom needs to be connected again before it can sync.");
 
   try {
+    await reportProgress({ percent: 8, message: "Checking secure Dexcom connection" });
     const config = dexcomConfig();
     let accessToken = decryptDexcomToken(credentials.accessTokenCiphertext);
     if (credentials.accessTokenExpiresAt.getTime() < Date.now() + 60_000) {
+      await reportProgress({ percent: 18, message: "Refreshing secure access" });
       const tokenResponse = await fetch(config.tokenUrl, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ client_id: config.clientId, client_secret: config.clientSecret, refresh_token: decryptDexcomToken(credentials.refreshTokenCiphertext), grant_type: "refresh_token" }), cache: "no-store" });
       if (!tokenResponse.ok) throw new DexcomSyncError(`token-refresh-${tokenResponse.status}`);
       const refreshed = await tokenResponse.json() as { access_token?: string; refresh_token?: string; expires_in?: number };
@@ -42,6 +46,7 @@ export async function syncDexcomConnection(connectionId: string) {
       await db.update(dexcomOAuthCredentials).set({ accessTokenCiphertext: encryptDexcomToken(refreshed.access_token), refreshTokenCiphertext: encryptDexcomToken(refreshed.refresh_token), accessTokenExpiresAt: new Date(Date.now() + refreshed.expires_in * 1000), updatedAt: new Date() }).where(eq(dexcomOAuthCredentials.connectionId, connection.id));
     }
 
+    await reportProgress({ percent: 32, message: "Checking available glucose data" });
     const dataRangeEndpoint = new URL("/v3/users/self/dataRange", config.apiBaseUrl);
     const dataRangeResponse = await fetch(dataRangeEndpoint, { headers: { authorization: `Bearer ${accessToken}`, accept: "application/json" }, cache: "no-store" });
     if (!dataRangeResponse.ok) throw new DexcomSyncError(`data-range-${dataRangeResponse.status}`);
@@ -57,6 +62,7 @@ export async function syncDexcomConnection(connectionId: string) {
     const endpoint = new URL("/v3/users/self/egvs", config.apiBaseUrl);
     endpoint.searchParams.set("startDate", dexcomRequestTime(start));
     endpoint.searchParams.set("endDate", dexcomRequestTime(end));
+    await reportProgress({ percent: 54, message: "Fetching recent glucose readings" });
     const response = await fetch(endpoint, { headers: { authorization: `Bearer ${accessToken}`, accept: "application/json" }, cache: "no-store" });
     if (!response.ok) {
       const responseText = (await response.text()).slice(0, 500);
@@ -66,8 +72,10 @@ export async function syncDexcomConnection(connectionId: string) {
     }
     const data = await response.json() as DexcomResponse;
     const readings = (data.records || []).flatMap((record) => !record.recordId || !record.systemTime || typeof record.value !== "number" ? [] : [{ connectionId: connection.id, sourceReadingId: record.recordId, recordedAt: new Date(record.systemTime), valueMgDl: record.value, trend: "unknown" as const, trendRate: record.trendRate === null || record.trendRate === undefined ? null : String(record.trendRate) }]);
+    await reportProgress({ percent: 78, message: "Saving glucose readings" });
     if (readings.length > 0) await db.insert(glucoseReadings).values(readings).onConflictDoNothing();
     await db.update(dexcomConnections).set({ lastSyncedAt: new Date(), lastError: null, updatedAt: new Date() }).where(eq(dexcomConnections.id, connection.id));
+    await reportProgress({ percent: 100, message: "Dexcom is up to date" });
     return { readingsReceived: readings.length };
   } catch (error) {
     const code = error instanceof DexcomSyncError ? error.code : "unexpected";
