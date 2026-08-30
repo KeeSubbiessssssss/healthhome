@@ -1,10 +1,24 @@
 "use client";
 
-import Rive from "@rive-app/react-webgl2";
+import { StateMachineInputType, useRive } from "@rive-app/react-webgl2";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type SyncResponse = { ok?: boolean; code?: string };
+
+function LiquidLoadingRive() {
+  const { RiveComponent, rive } = useRive({ src: "/rive/liquid-loading-screen.riv", artboard: "refresh", stateMachines: "SM", autoplay: true }, { shouldResizeCanvasToContainer: true });
+
+  useEffect(() => {
+    const inputs = rive?.stateMachineInputs("SM") ?? [];
+    for (const input of inputs) {
+      if (input.name === "start" && input.type === StateMachineInputType.Trigger) input.fire();
+      if (input.name === "loading" && input.type === StateMachineInputType.Boolean) input.value = true;
+    }
+  }, [rive]);
+
+  return <RiveComponent className="dexcom-rive" aria-label="Dexcom is refreshing" />;
+}
 
 export function DexcomRefresh({ connected }: { connected: boolean }) {
   const router = useRouter();
@@ -43,7 +57,7 @@ export function DexcomRefresh({ connected }: { connected: boolean }) {
 
   return <div className="dexcom-refresh" aria-live="polite">
     <button type="button" className="dashboard-link" onClick={() => void sync()} disabled={syncing}>{syncing ? "Refreshing Dexcom" : "Sync Dexcom"}</button>
-    {syncing ? <div className="dexcom-refresh-loader"><Rive className="dexcom-rive" src="/rive/liquid-loading-screen.riv" artboard="refresh" stateMachine="SM" shouldDisableRiveListeners aria-label="Dexcom is refreshing" /><span>Dexcom refresh in progress</span></div> : null}
+    {syncing ? <div className="dexcom-refresh-loader"><LiquidLoadingRive /><span>Dexcom refresh in progress</span></div> : null}
     {message ? <p>{message}</p> : null}
   </div>;
 }
