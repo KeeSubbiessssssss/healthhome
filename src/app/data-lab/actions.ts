@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { medications, prescriptions } from "@/db/schema";
+import { medicationActivityEvents, medications, prescriptions } from "@/db/schema";
 import { db } from "@/lib/db";
 import { currentMember } from "@/lib/household";
 
@@ -87,7 +87,7 @@ async function ownedPrescription(prescriptionId: string) {
   if (Number(totalUnitsPerScript) <= 0 || Number(unitsPerDose) <= 0 || dosesPerDay <= 0) {
     throw new Error("This script needs positive unit and daily-dose values before it can be consumed.");
   }
-  return { ...prescription, totalUnitsPerScript, unitsPerDose, dosesPerDay, unitsLeft };
+  return { ...prescription, memberId: member.id, totalUnitsPerScript, unitsPerDose, dosesPerDay, unitsLeft };
 }
 
 function assertCorrectionConfirmed(formData: FormData) {
@@ -103,7 +103,18 @@ async function ownedMedicationScript(prescriptionId: string) {
     .where(and(eq(prescriptions.id, prescriptionId), eq(medications.householdId, member.householdId), eq(prescriptions.isActive, true)))
     .limit(1);
   if (!script) throw new Error("Medication script was not found.");
-  return script;
+  return { ...script, memberId: member.id };
+}
+
+async function recordActivity(
+  prescriptionId: string,
+  memberId: string,
+  eventType: typeof medicationActivityEvents.$inferInsert.eventType,
+  unitsDelta: string,
+  repeatsDelta: number,
+  summary: string,
+) {
+  await db.insert(medicationActivityEvents).values({ prescriptionId, householdMemberId: memberId, eventType, unitsDelta, repeatsDelta, summary });
 }
 
 function medicationScriptValues(formData: FormData) {
@@ -152,7 +163,7 @@ export async function addMedication(formData: FormData) {
       strengthLabel: values.strength,
       notes: "Preview test data only. Not clinical advice.",
     }).returning({ id: medications.id });
-    await tx.insert(prescriptions).values({
+    const [prescription] = await tx.insert(prescriptions).values({
       medicationId: medication.id,
       householdMemberId: member.id,
       doseAmount: values.unitsPerDose,
@@ -171,7 +182,8 @@ export async function addMedication(formData: FormData) {
       daysLeft: tracking.daysLeft,
       repeatsAuthorized: values.repeatsPerScript,
       repeatsRemaining: values.repeatsPerScript,
-    });
+    }).returning({ id: prescriptions.id });
+    await tx.insert(medicationActivityEvents).values({ prescriptionId: prescription.id, householdMemberId: member.id, eventType: "script_created", unitsDelta: tracking.unitsLeft, repeatsDelta: values.repeatsPerScript, summary: "Medication script created" });
   });
 
   revalidatePath("/data-lab");
@@ -215,6 +227,7 @@ export async function updateMedication(prescriptionId: string, formData: FormDat
     }).where(eq(prescriptions.id, script.prescriptionId));
   });
 
+  await recordActivity(script.prescriptionId, script.memberId, "script_updated", "0", 0, "Medication script edited");
   revalidatePath("/data-lab");
 }
 
@@ -222,6 +235,7 @@ export async function archiveMedication(prescriptionId: string, formData: FormDa
   if (formData.get("confirmArchive") !== "yes") throw new Error("Confirm removal before archiving this medication.");
   const script = await ownedMedicationScript(prescriptionId);
   await db.update(prescriptions).set({ isActive: false, updatedAt: new Date() }).where(eq(prescriptions.id, script.prescriptionId));
+  await recordActivity(script.prescriptionId, script.memberId, "script_archived", "0", 0, "Medication archived");
   revalidatePath("/data-lab");
 }
 
@@ -232,6 +246,7 @@ export async function doseConsumed(prescriptionId: string) {
   if (unitsLeft + Number.EPSILON < unitsPerDose) throw new Error("There are not enough units left for a full dose.");
   const tracking = trackingFromUnits(unitsLeft - unitsPerDose, unitsPerDose, prescription.dosesPerDay);
   await db.update(prescriptions).set({ ...tracking, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
+  await recordActivity(prescription.id, prescription.memberId, "dose_consumed", (-unitsPerDose).toFixed(2), 0, "One dose consumed");
   revalidatePath("/data-lab");
 }
 
@@ -242,6 +257,7 @@ export async function dayConsumed(prescriptionId: string) {
   if (unitsLeft + Number.EPSILON < unitsPerDay) throw new Error("There are not enough units left for a full day of doses.");
   const tracking = trackingFromUnits(unitsLeft - unitsPerDay, Number(prescription.unitsPerDose), prescription.dosesPerDay);
   await db.update(prescriptions).set({ ...tracking, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
+  await recordActivity(prescription.id, prescription.memberId, "day_consumed", (-unitsPerDay).toFixed(2), 0, "One full day consumed");
   revalidatePath("/data-lab");
 }
 
@@ -254,6 +270,7 @@ export async function filledRepeat(prescriptionId: string) {
     repeatsRemaining: prescription.repeatsRemaining - 1,
     updatedAt: new Date(),
   }).where(eq(prescriptions.id, prescription.id));
+  await recordActivity(prescription.id, prescription.memberId, "repeat_filled", Number(prescription.totalUnitsPerScript).toFixed(2), -1, "Repeat filled");
   revalidatePath("/data-lab");
 }
 
@@ -266,6 +283,7 @@ export async function undoDoseConsumed(prescriptionId: string, formData: FormDat
     prescription.dosesPerDay,
   );
   await db.update(prescriptions).set({ ...tracking, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
+  await recordActivity(prescription.id, prescription.memberId, "dose_reversed", Number(prescription.unitsPerDose).toFixed(2), 0, "Accidental dose entry reversed");
   revalidatePath("/data-lab");
 }
 
@@ -279,6 +297,7 @@ export async function undoDayConsumed(prescriptionId: string, formData: FormData
     prescription.dosesPerDay,
   );
   await db.update(prescriptions).set({ ...tracking, updatedAt: new Date() }).where(eq(prescriptions.id, prescription.id));
+  await recordActivity(prescription.id, prescription.memberId, "day_reversed", unitsPerDay.toFixed(2), 0, "Accidental day entry reversed");
   revalidatePath("/data-lab");
 }
 
@@ -301,5 +320,6 @@ export async function undoFilledRepeat(prescriptionId: string, formData: FormDat
     repeatsRemaining: prescription.repeatsRemaining + 1,
     updatedAt: new Date(),
   }).where(eq(prescriptions.id, prescription.id));
+  await recordActivity(prescription.id, prescription.memberId, "repeat_reversed", (-Number(prescription.totalUnitsPerScript)).toFixed(2), 1, "Accidental repeat fill reversed");
   revalidatePath("/data-lab");
 }

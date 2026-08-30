@@ -3,6 +3,7 @@ import { boolean, date, index, integer, numeric, pgEnum, pgTable, text, timestam
 export const householdRole = pgEnum("household_role", ["owner", "member"]);
 export const medicationForm = pgEnum("medication_form", ["tablet", "capsule", "liquid", "injection", "aerosol", "cream", "patch", "device", "other"]);
 export const inventoryEventType = pgEnum("inventory_event_type", ["received", "consumed", "adjustment", "expired", "discarded"]);
+export const medicationActivityEventType = pgEnum("medication_activity_event_type", ["script_created", "script_updated", "script_archived", "dose_consumed", "day_consumed", "repeat_filled", "dose_reversed", "day_reversed", "repeat_reversed"]);
 export const dexcomConnectionStatus = pgEnum("dexcom_connection_status", ["not_connected", "connected", "needs_reauth", "error"]);
 export const glucoseTrend = pgEnum("glucose_trend", ["double_up", "single_up", "forty_five_up", "flat", "forty_five_down", "single_down", "double_down", "unknown"]);
 
@@ -73,6 +74,19 @@ export const prescriptions = pgTable("prescriptions", {
 }, (table) => [
   index("prescriptions_medication_id_idx").on(table.medicationId),
   index("prescriptions_expiry_idx").on(table.scriptExpiresOn),
+]);
+
+export const medicationActivityEvents = pgTable("medication_activity_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  prescriptionId: uuid("prescription_id").notNull().references(() => prescriptions.id, { onDelete: "cascade" }),
+  householdMemberId: uuid("household_member_id").references(() => householdMembers.id, { onDelete: "set null" }),
+  eventType: medicationActivityEventType("event_type").notNull(),
+  unitsDelta: numeric("units_delta", { precision: 10, scale: 2 }).notNull().default("0"),
+  repeatsDelta: integer("repeats_delta").notNull().default(0),
+  summary: text("summary").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("medication_activity_events_prescription_created_idx").on(table.prescriptionId, table.createdAt),
 ]);
 
 export const medicationStock = pgTable("medication_stock", {
