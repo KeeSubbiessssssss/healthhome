@@ -1,0 +1,43 @@
+.dashboardSurface {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+}
+
+.dashboardSurface::before {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(31, 31, 34, 0.58), rgba(31, 31, 34, 0.74)),
+    url("/images/healthhome-bg.webp") center / cover no-repeat;
+}
+
+:global(body):has(.dashboardSurface) {
+  background: #1f1f22 !important;
+}
+
+.dashboardSurface :global(.dashboard-metric),
+.dashboardSurface :global(.dashboard-panel),
+.dashboardSurface :global(.dashboard-glucose-status),
+.dashboardSurface :global(.injectable-dose-section) {
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dashboardSurface :global(.dashboard-metric:hover),
+  .dashboardSurface :global(.dashboard-panel:hover),
+  .dashboardSurface :global(.dashboard-glucose-status:hover),
+  .dashboardSurface :global(.injectable-dose-section:hover) {
+    transform: translateY(-3px);
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 30px 78px rgba(0, 0, 0, 0.32);
+  }
+}
