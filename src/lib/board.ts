@@ -92,6 +92,13 @@ export function dailyDoseLabel(medication: Pick<Medication, "strength" | "unit" 
   const dose = totalDailyDose(medication);
   return dose ? `${dose.amount}${dose.unit ? ` ${dose.unit}` : ""} daily` : "Daily dose not set";
 }
+export function medicationSupplyStatus(medication: Pick<Medication, "unitsLeft" | "unitsPerDose" | "dosesPerDay" | "repeats" | "refillAt">) {
+  const dailyUnits = medication.unitsPerDose * medication.dosesPerDay;
+  const daysLeft = medication.unitsLeft === 0 ? 0 : dailyUnits > 0 ? medication.unitsLeft / dailyUnits : null;
+  const kind = medication.repeats === 0 && daysLeft !== null && daysLeft <= 12
+    ? "prescription" : medication.unitsLeft <= medication.refillAt ? "low" : null;
+  return { kind, daysLeft };
+}
 export function adjustInventory(medication: Medication, action: StockChange["action"], amount: number, note = ""): Medication {
   if (!["consume", "replenish", "correct", "repeat"].includes(action)) throw new Error("Choose an inventory action.");
   if (!Number.isFinite(amount) || amount < 0 || amount > 1e9 || (action !== "correct" && amount === 0)) throw new Error("Enter a valid inventory quantity.");

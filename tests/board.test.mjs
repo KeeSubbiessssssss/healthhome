@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { emptyBoard, adjustInventory, totalDailyDose, dailyDoseLabel, defaultPlacement, constrainPlacement, replaceFastener, fastenerAppearance, fillRepeat, logDose, moveCard, parseBoard, productLink, linksForGift, occasionsForGift, giftIsBought, undoDose } from '../src/lib/board.ts';
+import { emptyBoard, adjustInventory, medicationSupplyStatus, totalDailyDose, dailyDoseLabel, defaultPlacement, constrainPlacement, replaceFastener, fastenerAppearance, fillRepeat, logDose, moveCard, parseBoard, productLink, linksForGift, occasionsForGift, giftIsBought, undoDose } from '../src/lib/board.ts';
 const medication = () => ({ id: 'med', profileId: 'pet', name: 'Test medication', strength: '', instructions: '', unit: 'mL', unitsLeft: 2, unitsPerDose: .3, dosesPerDay: 1, refillAt: .5, unitsPerRefill: 10, repeats: 2, logs: [], archived: false });
 const board = () => ({ ...emptyBoard(), profiles: [{ id: 'pet', name: 'Test pet', kind: 'pet', birthday: '', species: 'Dog', color: 'sage' }], medications: [medication()] });
 test('people and pets can own medications without login identities', () => {
@@ -190,4 +190,21 @@ test('repeat fills are audited while legacy medication data remains readable', (
  state.medications[0].doseTiming = 123; assert.throws(() => parseBoard(state));
  delete state.medications[0].doseTiming;
  state.medications[0].stockChanges[0].after = -1; assert.throws(() => parseBoard(state));
+});
+
+test('no-repeat prescription warning uses an inclusive, exact 12-day threshold', () => {
+ const med = { ...medication(), unitsPerDose: 3, dosesPerDay: 1, repeats: 0, refillAt: 5 };
+ assert.deepEqual(medicationSupplyStatus({ ...med, unitsLeft: 36 }), { kind: 'prescription', daysLeft: 12 });
+ assert.equal(medicationSupplyStatus({ ...med, unitsLeft: 36.1 }).kind, null);
+ assert.equal(medicationSupplyStatus({ ...med, unitsLeft: 33 }).kind, 'prescription');
+ assert.equal(medicationSupplyStatus({ ...med, unitsLeft: 33, repeats: 1 }).kind, null);
+ assert.equal(medicationSupplyStatus({ ...med, unitsLeft: 0 }).kind, 'prescription');
+});
+test('ordinary stock warnings stay quiet, with prescription warnings taking priority', () => {
+ assert.equal(medicationSupplyStatus(medication()).kind, null);
+ assert.equal(medicationSupplyStatus({ ...medication(), unitsLeft: .5 }).kind, 'low');
+ assert.equal(medicationSupplyStatus({ ...medication(), unitsLeft: .5, repeats: 0 }).kind, 'prescription');
+ assert.deepEqual(medicationSupplyStatus({ ...medication(), dosesPerDay: 0, repeats: 0 }), { kind: null, daysLeft: null });
+ assert.equal(medicationSupplyStatus({ ...medication(), dosesPerDay: 0, unitsLeft: .1, repeats: 0 }).kind, 'low');
+ assert.equal(medicationSupplyStatus({ ...medication(), dosesPerDay: 0, unitsLeft: 0, repeats: 0 }).kind, 'prescription');
 });
