@@ -2,6 +2,7 @@
 
 import { useRef, useState, useLayoutEffect, type ReactNode, type FormEvent } from "react";
 import { householdDateKey, newId, weekDates, weekdayNames, weeklyAgenda, type BoardState, type WeeklyActivity } from "@/lib/board";
+import { schoolChildren } from "@/lib/school-travel";
 import { activityGroups, timedActivityLayout } from "@/lib/schedule-layout";
 import s from "./family-board.module.css";
 import { SchoolTravelSettings, SchoolDayNotes } from "./school-travel";
@@ -9,11 +10,11 @@ import { SchoolTravelSettings, SchoolDayNotes } from "./school-travel";
 export type BoardCommit = (change: (draft: BoardState) => void, message?: string) => Promise<boolean>;
 export const clockLabel = (time: string) => { const [hour, minute] = time.split(":").map(Number); return `${hour % 12 || 12}:${String(minute).padStart(2, "0")}${hour >= 12 ? "pm" : "am"}`; };
 
-export function AgendaTiles({ state, offset = 0, profileId = "", compact = false, todayOnly = false, showPeople = true, onEdit, onRemove }: { state: BoardState; offset?: number; profileId?: string; compact?: boolean; todayOnly?: boolean; showPeople?: boolean; onEdit?: (id: string) => void; onRemove?: (id: string) => void }) {
+export function AgendaTiles({ state, offset = 0, profileId = "", compact = false, todayOnly = false, showPeople = true, showSchoolTravel = true, onEdit, onRemove }: { state: BoardState; offset?: number; profileId?: string; compact?: boolean; todayOnly?: boolean; showPeople?: boolean; showSchoolTravel?: boolean; onEdit?: (id: string) => void; onRemove?: (id: string) => void }) {
   const today = householdDateKey();
   const occupied = weeklyAgenda(state.activities || [], new Date(), offset, profileId);
   const days = weekDates(new Date(), offset).map((date, weekday) => ({ date, weekday, activities: occupied.find(day => day.date === date)?.activities || [] })).filter(day => !todayOnly || day.date === today);
-  if (todayOnly && !days.some(day => day.activities.length)) return <p className={s.agendaEmpty}>Nothing scheduled today.</p>;
+  if (todayOnly && !days.some(day => day.activities.length || (showSchoolTravel && day.weekday < 5 && schoolChildren(state).length > 0))) return <p className={s.agendaEmpty}>Nothing scheduled today.</p>;
   const layout = days.map(day => ({ ...day, groups: activityGroups(day.activities) }));
   const tile = (activity: WeeklyActivity) => <>
     <time>{clockLabel(activity.startTime)}{activity.endTime && <span>–{clockLabel(activity.endTime)}</span>}</time>
@@ -22,7 +23,7 @@ export function AgendaTiles({ state, offset = 0, profileId = "", compact = false
   </>;
   return <div className={`${s.agenda} ${compact ? s.compactAgenda : ""}`} style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(192px, 1fr))` }}>{layout.map(day => <section className={s.agendaDay} key={day.date}>
     <h3>{weekdayNames[day.weekday].slice(0, 3)}{day.date === today && <small>Today</small>}</h3>
-    {day.weekday < 5 && <SchoolDayNotes state={state} weekday={day.weekday} profileId={profileId}/>}
+    {showSchoolTravel && day.weekday < 5 && <SchoolDayNotes state={state} weekday={day.weekday} profileId={profileId}/>}
     <div className={s.agendaTiles}>{day.groups.map((lanes, index) => lanes.length > 1 ? <TimedActivities key={index} lanes={lanes} renderTile={tile}/> : lanes[0].map(activity => <article key={activity.id} className={`${s.activityTile} ${s[activity.color]}`}>{tile(activity)}</article>))}</div>
   </section>)}</div>;
 }

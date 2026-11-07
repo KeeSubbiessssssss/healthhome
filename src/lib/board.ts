@@ -15,7 +15,7 @@ export type DropPick = { id: string; profileId: string; profileIds?: string[]; n
 export type WeeklyActivity = { id: string; title: string; profileIds: string[]; weekdays: number[]; startTime: string; endTime: string; color: string };
 export type DropPickOverride = { id: string; entryId: string; date: string; replacement: DropPick | null };
 export type SummaryKind = "medications" | "gifts" | "tasks-summary" | "schedule" | "drop-pick";
-export type SummaryPreferences = { pinned: boolean; fields: string[]; profileId: string };
+export type SummaryPreferences = { showSchoolTravel?: boolean; pinned: boolean; fields: string[]; profileId: string };
 export type Fastener = { variant: number; offset: number; angle: number; size: number };
 export type NotePlacement = { width?: number; height?: number; fastener?: Fastener; x: number; y: number; angle: number; z: number; attachment: "pin" | "tape" | "loose" };
 export type BoardState = { schemaVersion: 1; schoolTravel?: { profileIds: string[]; days: SchoolTravelDay[] }; schoolTravelOverrides?: SchoolTravelOverride[]; dropPick?: DropPick[]; dropPickOverrides?: DropPickOverride[]; activities?: WeeklyActivity[]; summaries?: Partial<Record<SummaryKind, SummaryPreferences>>; profiles: Profile[]; lists: TaskList[]; gifts: Gift[]; medications: Medication[]; order: string[]; cardColors?: Record<string, string>; noteLayout?: Record<string, NotePlacement>; removedNotes?: string[] };
@@ -115,7 +115,7 @@ export function parseBoard(value: unknown): BoardState {
   }
   if (board.summaries !== undefined) {
     check(!!board.summaries && typeof board.summaries === "object" && !Array.isArray(board.summaries));
-    for (const [kind, prefs] of Object.entries(board.summaries)) check(Object.hasOwn(summaryOptions, kind) && !!prefs && typeof prefs.pinned === "boolean" && profile(prefs.profileId, true) && Array.isArray(prefs.fields) && prefs.fields.length > 0 && new Set(prefs.fields).size === prefs.fields.length && prefs.fields.every(f => summaryOptions[kind as SummaryKind].fields.some(option => option.id === f)));
+    for (const [kind, prefs] of Object.entries(board.summaries)) check(Object.hasOwn(summaryOptions, kind) && !!prefs && typeof prefs.pinned === "boolean" && (prefs.showSchoolTravel === undefined || (kind === "schedule" && typeof prefs.showSchoolTravel === "boolean")) && profile(prefs.profileId, true) && Array.isArray(prefs.fields) && prefs.fields.length > 0 && new Set(prefs.fields).size === prefs.fields.length && prefs.fields.every(f => summaryOptions[kind as SummaryKind].fields.some(option => option.id === f)));
   }
   check(board.lists.every(list => !["welcome", "medications", "gifts", "schedule", "tasks-summary", "drop-pick"].includes(list.id)));
   const cards = new Set(["welcome", "medications", "gifts", ...board.lists.map(l => l.id), ...board.order.filter(id => id === "schedule" || id === "tasks-summary" || id === "drop-pick")]);

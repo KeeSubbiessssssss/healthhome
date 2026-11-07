@@ -80,3 +80,10 @@ test('shared Drop/Pick supports travelling together, bus and unassigned transpor
  }
  const pet = {...board(),profiles:state.profiles.map(p=>p.id==='second'?{...p,kind:'pet'}:p),dropPick:[shared]}; assert.throws(()=>parseBoard(pet));
 });
+test('schedule summary can hide school travel without hiding the schedule or daily note', () => {
+ const state=board();setSummaryPreferences(state,'schedule',{pinned:true,fields:['week','people'],profileId:'',showSchoolTravel:false});
+ assert.equal(parseBoard(structuredClone(state)).summaries.schedule.showSchoolTravel,false);
+ assert.equal(summaryPreferences(state,'drop-pick').pinned,true);
+ setSummaryPreferences(state,'schedule',{...state.summaries.schedule,showSchoolTravel:true});assert.doesNotThrow(()=>parseBoard(state));
+ state.summaries.schedule.showSchoolTravel='false';assert.throws(()=>parseBoard(state));
+});
