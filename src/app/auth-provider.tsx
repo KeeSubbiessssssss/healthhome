@@ -8,5 +8,5 @@ import { authClient } from "@/lib/auth/client";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  return <NeonAuthUIProvider defaultTheme="light" authClient={authClient} navigate={router.push} replace={router.replace} onSessionChange={() => router.refresh()} redirectTo="/join" Link={Link}>{children}</NeonAuthUIProvider>;
+  return <NeonAuthUIProvider defaultTheme="light" emailVerification={{ otp: true }} authClient={authClient} navigate={router.push} replace={router.replace} onSessionChange={() => router.refresh()} redirectTo="/join" Link={Link}>{children}</NeonAuthUIProvider>;
 }
