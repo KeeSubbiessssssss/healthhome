@@ -1,10 +1,12 @@
 import localFont from "next/font/local";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "@neondatabase/auth-ui/css";
 import "./globals.css";
 import { AuthProvider } from "@/app/auth-provider";
 
 const handwriting = localFont({ src: "../../public/fonts/PatrickHand-Regular.ttf", variable: "--font-handwriting", display: "swap", weight: "400", preload: true });
+
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#2d2b68" };
 
 export const metadata: Metadata = {
   title: "HealthHome | Your household at a glance",

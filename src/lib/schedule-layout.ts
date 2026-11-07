@@ -19,3 +19,14 @@ export function activityGroups(activities: WeeklyActivity[]): WeeklyActivity[][]
   }
   return groups;
 }
+
+// One minute has the same height throughout an overlap group. Measured content
+// sets the scale, so short events remain readable without distorting their timing.
+export function timedActivityLayout(lanes: WeeklyActivity[][], minimumHeights: Record<string, number> = {}) {
+  const activities = lanes.flat();
+  if (!activities.length) return { height: 0, items: [] };
+  const first = Math.min(...activities.map(activity => minutes(activity.startTime)));
+  const scale = Math.max(.7, ...activities.filter(activity => activity.endTime).map(activity => (minimumHeights[activity.id] || 120) / (end(activity) - minutes(activity.startTime))));
+  const items = lanes.flatMap((lane, column) => lane.map(activity => ({ activity, column, top: (minutes(activity.startTime) - first) * scale, height: activity.endTime ? (end(activity) - minutes(activity.startTime)) * scale : minimumHeights[activity.id] || 120 })));
+  return { height: Math.max(...items.map(item => item.top + item.height)), items };
+}

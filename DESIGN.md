@@ -41,3 +41,11 @@ Extend the existing vibrant scrapbook palette, handwritten headings and paper fo
 The schedule summary is a landscape itinerary slip with a coral top edge, folded corner and the board’s automatic pin or tape. Start at (600 × 300) canvas units; a corner handle supports pointer resizing and keyboard arrows, with Shift for fine adjustment. Constrain width to (360–900), height to (180–500), and width/height to at least (1.2). Keep the full width within the (1200)-unit board. Its contents scroll inside the paper without starting a move; free movement, rotation and automatic fastener behaviour remain shared with other notes.
 
 Medication, Weekly schedule, Lists & tasks and Presents summaries share an options editor for visible details, a household/profile filter and pin visibility. Hiding a summary preserves its layout and schedule dimensions for repinning; this explicit summary preference is separate from ignored legacy removed-note metadata. Keep options in two columns on wide screens and one on small screens, using the existing form controls and paper treatment.
+
+## Mobile adaptation
+
+Phones use the blueberry brand bar and five thumb-reachable paper tabs; More opens a native focus-contained household/settings dialog. Allow safe-area insets and text zoom. Forms use 16px input text, single-column fields and at least 44px action targets. Family filters scroll in one row. Medication, presents and lists retain saturated family paper colours, compact content and readable actions.
+
+The phone pinboard opens as a full-width, vertically scrollable stack of readable notes. Arrange switches to the saved free canvas at readable scale, preserving all desktop positions, sizes, angles and fasteners; returning to reading never writes layout. Touch movement starts only on the grip, with body swipes reserved for scrolling. Rotation and resizing remain available in Arrange. Summary schedules scroll within their paper.
+
+Full weekly schedules flow down the phone screen, keeping all seven weekdays and side-by-side overlaps. Desktop day columns have equal widths independent of overlap count. Overlapping activities use a shared minutes-to-pixels scale within each active group: their starts, ends and overlap portions stay proportional; measured content establishes the minimum readable scale. No empty hourly grid is introduced.

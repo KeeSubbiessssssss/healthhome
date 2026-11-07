@@ -504,3 +504,212 @@
 .dropPickSettingsList li { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px dashed #8fb8b5; }
 .dropPickSettingsList li > div:first-child { display: flex; gap: 6px 10px; flex-wrap: wrap; min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
 .dropPickSettingsList small { flex-basis: 100%; font-size: 11px; }
+
+/* Mobile keeps the same scrapbook, with reading and arranging as separate gestures. */
+.mobileHeader, .mobileNav, .boardModeToggle { display: none; }
+.mobileMenu { border: 0; padding: 0; width: min(440px, calc(100% - 24px)); max-height: calc(100dvh - 32px); border-radius: 4px 4px 18px 4px; background: #fffdf4; color: #25274d; box-shadow: 4px 18px 50px #111c3c55; }
+.mobileMenu::backdrop { background: #17194699; }
+.mobileMenuContents { padding: 20px; }
+.mobileMenuContents > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.mobileMenu h2 { margin: 0; font: 32px/1.1 var(--font-handwriting), cursive; }
+.mobileMenu h3 { font: 24px var(--font-handwriting), cursive; margin: 24px 0 10px; }
+.mobileMenu nav { display: grid; margin-top: 16px; gap: 4px; }
+.mobileMenu nav button { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 12px; border: 0; background: transparent; color: inherit; text-align: left; font-size: 15px; }
+.mobileMenu nav button > svg:last-child { margin-left: auto; }
+.mobileMenu nav button[aria-current=page] { background: #e9ff64; font-weight: 700; }
+.mobilePeople { display: flex; flex-wrap: wrap; gap: 8px; }
+.mobilePeople button { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px; border: 0; background: #e3f4ed; color: inherit; font-size: 14px; }
+.mobileMenuContents > p { margin: 24px 0 0; color: #365d69; font-size: 12px; }
+@media (max-width: 1100px) and (min-width: 761px) {
+  .shell { grid-template-columns: 185px minmax(0, 1fr); }
+  .sidebar { padding: 24px 12px; }
+  .brand { font-size: 24px; gap: 6px; }
+  .sidebarFamily { margin-inline: 4px; }
+  .main { padding-inline: 24px; }
+  .giftGrid, .medicationGrid, .pinboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .boardMain { padding: 0; }
+  .boardMain .canvasDock { padding: 14px 18px; gap: 12px; }
+  .canvasDockActions { gap: 8px; }
+}
+@media (pointer: coarse) {
+  .iconButton, .noteGrip, .paletteMenu summary, .primary, .secondary, .textButton, .paletteSwatch { min-width: 44px; min-height: 44px; }
+  .rotateNote, .paper.freeNote > .resizeNote { width: 44px; height: 44px; opacity: 1; }
+  .freeCanvas { touch-action: pan-x pan-y; }
+  .paper.freeNote, .paper.freeNote:nth-child(n) { touch-action: pan-x pan-y; }
+  .noteGrip, .rotateNote, .paper.freeNote > .resizeNote { touch-action: none; }
+}
+@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) {
+  .shell { display: block; --phone-nav: calc(64px + env(safe-area-inset-bottom)); --phone-header: calc(60px + env(safe-area-inset-top)); min-height: 100dvh; padding-bottom: var(--phone-nav); }
+  .shell > .sidebar { display: none; }
+  .mobileHeader { display: flex; position: sticky; top: 0; z-index: 70; height: var(--phone-header); flex: 0 0 var(--phone-header); align-items: center; justify-content: space-between; padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); background: #2d2b68; color: #fffdf5; }
+  .mobileBrand, .mobileMenuButton { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; color: inherit; min-height: 44px; }
+  .mobileBrand { font: 28px/1 var(--font-handwriting), cursive; padding: 0; }
+  .mobileBrand > svg { background: #e9ff64; color: #2d2b68; padding: 5px; box-sizing: content-box; border-radius: 3px; }
+  .mobileBrand > span > span { color: #ff8965; }
+  .mobileMenuButton { font-size: 12px; padding: 8px; }
+  .mobileNav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; z-index: 80; bottom: 0; left: 0; right: 0; height: var(--phone-nav); padding: 4px max(6px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(6px, env(safe-area-inset-left)); background: #2d2b68; box-shadow: 0 -3px 12px #16223d20; }
+  .mobileNav button { display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; min-width: 0; min-height: 52px; padding: 5px 2px; border: 0; background: transparent; color: #eff8ff; border-radius: 3px 3px 9px 3px; font-size: 10px; line-height: 1.2; }
+  .mobileNav button[aria-current=page] { background: #e9ff64; color: #25274d; font-weight: 700; }
+  .main { max-width: 100%; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+  .topbar { min-height: 62px; gap: 8px; }
+  .topbar .date { transform: none; }
+  .pageHeading { margin-top: 22px; gap: 12px; }
+  .pageHeading h1, .scheduleMain .pageHeading h1 { font-size: clamp(30px, 8.5vw, 40px); line-height: 1.1; }
+  .pageHeading p { font-size: 13px; margin-top: 10px; }
+  .pageHeading > button { min-height: 44px; font-size: 13px; }
+  .sectionHeading { flex-wrap: wrap; gap: 10px; }
+  .sectionHeading > span { max-width: none; text-align: left; font-size: 12px; }
+  .primary, .secondary { min-height: 46px; font-size: 14px; padding: 11px 14px; white-space: normal; }
+  .textButton { min-height: 44px; font-size: 13px; padding-block: 9px; }
+  .iconButton { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+  .viewToolbar { align-items: stretch; flex-wrap: wrap; gap: 12px; margin: 18px 0; }
+  .viewToolbar > p { margin: 0; width: 100%; font-size: 23px; line-height: 1.2; }
+  .viewToolbar > .primary, .scheduleActions { width: 100%; }
+  .scheduleActions { display: grid; grid-template-columns: 1fr 1fr; }
+  .scheduleActions button { min-width: 0; padding: 10px; font-size: 13px; }
+  .profileFilters { flex-wrap: nowrap; overflow-x: auto; padding: 4px 0 10px; margin: 16px 0; gap: 8px; scroll-padding-inline: 16px; scrollbar-width: thin; }
+  .profileFilters > button { min-height: 44px; flex-shrink: 0; padding: 7px 12px; font-size: 13px; transform: none; }
+  .editor { margin-block: 16px 24px; padding: 18px 16px; }
+  .editor > header { margin-bottom: 18px; gap: 10px; align-items: start; }
+  .editor h2 { font-size: 28px; }
+  .formFields, .regimenFields { grid-template-columns: 1fr; gap: 16px; }
+  .field { font-size: 13px; gap: 7px; }
+  .field input, .field select, .field textarea, .quickTask input { font-size: 16px; min-height: 48px; }
+  .field input, .field select { padding: 11px 12px; }
+  .field textarea { min-height: 70px; }
+  .formActions { flex-wrap: wrap; gap: 6px 12px; }
+  .formActions > .primary { flex: 1 0 100%; }
+  .activityChoices { gap: 4px 12px; }
+  .activityChoices label, .summaryOptionGroup > label:not(.field), .giftChecks label, .stockCheckbox { min-height: 44px; font-size: 13px; }
+  .activityChoices input, .summaryOptionGroup input, .taskList input, .giftChecks input { width: 20px; height: 20px; flex-shrink: 0; }
+  .colorOption { min-height: 44px; font-size: 12px; }
+  .settingsGrid, .giftGrid, .medicationGrid, .pinboard { grid-template-columns: 1fr; gap: 20px; }
+  .settingsGroup { padding: 20px 16px; margin-bottom: 20px; }
+  .settingsGroup .sectionHeading { margin-bottom: 16px; align-items: center; }
+  .settingsGroup .sectionHeading h2 { font-size: 27px; }
+  .settingsGroup .secondary { min-height: 44px; font-size: 13px; padding: 10px 12px; }
+  .profileRows li { flex-wrap: wrap; gap: 8px; padding: 12px 0; }
+  .profileRows li > div { min-width: 90px; }
+  .profileRows small { font-size: 12px; line-height: 1.4; }
+  .accessPanel { margin-top: 20px; padding: 20px 16px; }
+  .accessRows li { flex-wrap: wrap; }
+  .accessRows li > div { flex-basis: 100%; }
+  .inviteForm, .verificationForm { flex-direction: column; align-items: stretch; }
+  .inviteForm > button, .inviteResult > button { width: 100%; }
+  .inviteResult { padding: 12px; }
+  .inviteResult > label { min-width: 0; flex-basis: 100%; }
+  .verificationForm input { max-width: none; }
+  .dropPickSettingsList li { flex-wrap: wrap; gap: 4px; }
+  .dropPickSettingsList li > div:first-child { flex-basis: 100%; font-size: 14px; }
+  .giftCard, .medicationCard { padding: 16px; transform: none; }
+  .giftCard h2 { font-size: 27px; }
+  .giftCard > header { align-items: start; gap: 6px; }
+  .giftCard .giftHeadingLine { flex-wrap: wrap; min-width: 0; }
+  .giftChecks { gap: 4px 14px; padding-top: 8px; font-size: 13px; }
+  .giftChecks .iconButton { margin-left: auto; }
+  .giftSummary { font-size: 13px; margin: 18px 0; }
+  .segmented { width: 100%; }
+  .segmented button { flex: 1; min-height: 44px; padding: 10px 8px; font-size: 13px; }
+  .giftLinkRow { grid-template-columns: minmax(0, 1fr) 44px; }
+  .giftLinkRow > label:first-child { grid-column: 1 / -1; }
+  .giftLinkRow > button { grid-column: 2; }
+  .productLink { min-height: 44px; display: inline-flex; align-items: center; font-size: 13px; }
+  .medicationCard h2 { font-size: 28px; }
+  .medicationCard .dailyDose strong { font-size: 32px; }
+  .doseSchedule, .medicationCard .instructions, .medicationCard .lastDose { font-size: 13px; line-height: 1.5; }
+  .medicationCard .medActions { gap: 8px; }
+  .medicationCard .medActions > button, .inventoryHeading button, .medActions .primary { min-height: 44px; font-size: 13px; padding: 10px 12px; }
+  .medInventory > summary, .stockHistory summary { min-height: 44px; padding-block: 12px; }
+  .medicationCard .recipient { font-size: 13px; }
+  .supplySticker { padding: 6px 8px; }
+  .medicationCard .noteFooter { flex-wrap: wrap; }
+  .doseHistory li { flex-wrap: wrap; gap: 4px; font-size: 12px; }
+  .taskList label { min-height: 44px; font-size: 14px; }
+  .taskList small { font-size: 12px; }
+  .noteFooter { flex-wrap: wrap; }
+  .pinboard > .paper { transform: none; padding: 38px 18px 18px; cursor: auto; }
+  .noteTitle h2 { font-size: 28px; }
+  .cardPalette { right: 0; top: 46px; width: min(280px, calc(100vw - 64px)); padding: 12px; }
+  .cardPalette > div { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+  .paletteMenu summary, .paletteSwatch { width: 44px; min-width: 44px; height: 44px; }
+  .paletteSwatch { border: 4px solid #fffdf6; }
+  .boardShell { height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .boardMain { padding: 0; max-width: none; }
+  .boardMain > .feedback { bottom: 12px; left: 16px; right: 16px; }
+  .boardMain > .feedback > span { background: #fffdf4; color: #25274d; padding: 8px 12px; width: fit-content; box-shadow: 1px 3px 10px #12363533; }
+  .boardMain > .editor { position: fixed; z-index: 75; top: calc(var(--phone-header) + 8px); bottom: calc(var(--phone-nav) + 8px); left: 8px; right: 8px; margin: 0; max-height: none; overflow: auto; overscroll-behavior: contain; }
+  .boardMain > .error { margin: 8px 16px; }
+  .boardMain .canvasDock { display: flex; padding: 14px 16px; gap: 10px; align-items: center; }
+  .canvasDock > .topbarTitle { flex: 1; flex-basis: auto; font-size: 30px; }
+  .canvasDockActions { display: flex; flex-basis: 100%; gap: 8px; margin: 0; }
+  .canvasDockActions > .date { display: none; }
+  .canvasDockActions > button { flex: 1; order: initial; margin: 0; min-height: 44px; font-size: 13px; padding: 10px; }
+  .boardModeToggle { display: inline-flex; align-items: center; justify-content: center; border: 0; min-height: 44px; padding: 8px 12px; font-size: 13px; background: #2d2b68; color: #fffdf5; border-radius: 3px; }
+  .canvasDock .zoomControls { order: 5; flex-basis: 100%; justify-content: center; }
+  .zoomControls button { min-height: 44px; min-width: 44px; font-size: 14px; }
+  .zoomControls output { font-size: 13px; }
+  .canvasWorkstation[data-reading=true] .zoomControls { display: none; }
+  .canvasWorkstation[data-reading=true] .canvasSizer { width: 100% !important; height: auto !important; }
+  .canvasWorkstation[data-reading=true] .freeCanvas { position: relative; display: flex; flex-direction: column; gap: 28px; padding: 28px 16px 40px; width: 100% !important; height: auto !important; transform: none !important; cursor: auto; touch-action: pan-x pan-y; }
+  .canvasWorkstation[data-reading=true] .paper.freeNote { position: relative; inset: auto; width: 100% !important; height: auto !important; transform: none !important; z-index: auto !important; cursor: auto; user-select: auto; touch-action: pan-x pan-y; padding: 14px 16px 18px; }
+  .canvasWorkstation[data-reading=true] .paper.freeNote.schedulePaper { min-height: 300px; max-height: 520px; }
+  .canvasWorkstation[data-reading=true] .noteGrip, .canvasWorkstation[data-reading=true] .rotateNote, .canvasWorkstation[data-reading=true] .resizeNote, .canvasWorkstation[data-reading=true] .canvasInstructions { display: none; }
+  .freeTools > .pinboardNoteHeading { font-size: 27px; }
+  .canvasWorkstation[data-reading=true] .noteCopy, .canvasWorkstation[data-reading=true] .summaryTotal, .canvasWorkstation[data-reading=true] .summarySection p, .canvasWorkstation[data-reading=true] .summarySection li, .canvasWorkstation[data-reading=true] .summaryItems li { font-size: 14px; line-height: 1.5; }
+  .canvasWorkstation[data-reading=true] .noteMeta, .canvasWorkstation[data-reading=true] .summarySection li > span, .canvasWorkstation[data-reading=true] .summaryItems li > span { font-size: 12px; }
+  .canvasWorkstation[data-reading=true] .handwritten { margin-bottom: 10px; }
+  .canvasWorkstation[data-reading=true] .familyLine { flex-wrap: wrap; }
+  .scheduleNoteBody { touch-action: pan-x pan-y; }
+  .agenda:not(.compactAgenda) { display: flex; flex-direction: column; gap: 24px; overflow: visible; padding: 0 0 20px; }
+  .agenda:not(.compactAgenda) .agendaDay { scroll-margin-top: calc(var(--phone-header) + 16px); }
+  .agenda:not(.compactAgenda) .agendaDay h3 { font-size: 30px; padding-bottom: 8px; border-bottom: 1px dashed #85c7c3; }
+  .agenda:not(.compactAgenda) .activityTile { padding: 12px; }
+  .agenda:not(.compactAgenda) .activityTile strong { font-size: 15px; }
+  .agenda:not(.compactAgenda) .activityTile time, .agenda:not(.compactAgenda) .activityTile small { font-size: 13px; }
+  .activityActions { flex-wrap: wrap; gap: 4px 14px; }
+  .dropPickNote { font-size: 13px; }
+  .dropPickNote small { font-size: 12px; }
+  .dropPickDay { padding: 10px; }
+  .footer { margin-top: 24px; padding-block: 20px; font-size: 11px; flex-wrap: wrap; }
+  .footer > span:last-child { max-width: none; text-align: left; }
+}
+
+.timedActivities { position: relative; min-width: 0; }
+.timedActivities > .activityTile { position: absolute; padding: 8px; }
+.activityTileContent { display: flex; flex-direction: column; align-items: start; gap: 6px; width: 100%; }
+.timedActivities .activityActions { gap: 0 8px; flex-wrap: wrap; }
+.timedActivities .activityTile time span { display: block; }
+@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) {
+  .canvasDockActions > .date { display: flex; order: initial; transform: none; padding: 4px 7px; gap: 4px; }
+  .canvasDockActions > .date > span { font-size: 24px; }
+  .canvasDockActions > .date strong { font-size: 9px; }
+  .canvasDockActions > .date small { font-size: 8px; }
+  .agenda:not(.compactAgenda) .timedActivities > .activityTile { padding: 10px; }
+  .activityTile time { white-space: normal; }
+  .canvasWorkstation[data-reading=true] .paletteSwatch { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
+  .canvasWorkstation[data-reading=true] .cardPalette { width: min(280px, calc(100vw - 64px)); }
+  .cardPalette > div { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) {
+  .feedback:empty { min-height: 0; padding: 0; }
+  .noteLink { min-height: 44px; font-size: 14px; }
+  .field select { padding-right: 36px; }
+  .giftCard > p, .giftCard > header, .giftCard .recipient, .giftCard .requestedStatus { font-size: 12px; }
+  .giftCard .productLink { font-size: 13px; }
+  .noteGrip { min-width: 44px; min-height: 44px; touch-action: none; }
+  .rotateNote, .paper.freeNote > .resizeNote { width: 44px; height: 44px; opacity: 1; }
+  .freeCanvas, .paper.freeNote, .paper.freeNote:not([data-lifted]):hover { touch-action: pan-x pan-y; }
+  .canvasInstructions { left: 16px; width: calc(100% - 32px); font-size: 20px; }
+  .canvasInstructions small { display: block; max-width: 32ch; margin: 6px 0 0; line-height: 1.4; font-size: 12px; }
+  .mobileMenu .iconButton { width: 44px; height: 44px; }
+  .paletteSwatch { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
+  .mobileMenuContents > header { flex-wrap: nowrap; }
+}
+
+@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) {
+  .giftCard .giftChecks input { width: 20px; height: 20px; }
+  .giftCard .giftChecks { font-size: 13px; gap: 4px 14px; }
+  .giftCard .giftHeadingLine .requestedStatus { font-size: 12px; padding: 3px 6px; }
+  .giftCard .iconButton { min-width: 44px; min-height: 44px; }
+}

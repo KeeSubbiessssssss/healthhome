@@ -16,3 +16,15 @@ input, textarea { caret-color: var(--accent); }
 .data-lab-shell button { padding: 12px 18px; }
 @media(prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
 html { scrollbar-color: #167f83 #e2f6f1; scrollbar-width: thin; }
+
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 80px; }
+body:has(dialog[open]) { overflow: hidden; }
+button, a, summary { touch-action: manipulation; }
+.data-lab-shell { width: min(100%, 650px); overflow-wrap: anywhere; }
+@media(max-width: 760px) {
+  .data-lab-shell { margin: 0 auto; padding: max(28px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom)); }
+  .data-lab-shell h1 { font: 38px/1.1 var(--font-handwriting), cursive; }
+  .data-lab-shell p { line-height: 1.6; }
+  .data-lab-shell input, .data-lab-shell select, .data-lab-shell textarea { font-size: 16px; min-height: 48px; max-width: 100%; }
+  .data-lab-shell button, .data-lab-shell a { min-height: 44px; }
+}

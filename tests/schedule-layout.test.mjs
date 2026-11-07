@@ -17,3 +17,14 @@ test('activities without end times do not get an invented duration or mutate inp
  assert.deepEqual(ids(activityGroups([item('a', '09:00'), item('b', '09:00')])), [[['a'], ['b']]]);
  assert.deepEqual(activityGroups([]), []);
 });
+
+test('overlap geometry preserves proportional starts, lengths and shared interval', async () => {
+ const { timedActivityLayout } = await import('../src/lib/schedule-layout.ts');
+ const a = item('a', '15:45', '19:15'); const b = item('b', '16:00', '18:00');
+ const layout = timedActivityLayout([[a], [b]], { a: 140, b: 120 });
+ const first = layout.items[0]; const second = layout.items[1];
+ assert.equal(second.top, 15);
+ assert.equal(first.height, 210); assert.equal(second.height, 120);
+ assert.equal(second.top / first.height, 15 / 210);
+ assert.equal(layout.height, first.height);
+});

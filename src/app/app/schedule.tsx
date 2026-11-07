@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, useLayoutEffect, type ReactNode, type FormEvent } from "react";
 import { householdDateKey, newId, weekDates, weekdayNames, weeklyAgenda, type BoardState, type WeeklyActivity } from "@/lib/board";
-import { activityGroups } from "@/lib/schedule-layout";
+import { activityGroups, timedActivityLayout } from "@/lib/schedule-layout";
 import s from "./family-board.module.css";
 
 export type BoardCommit = (change: (draft: BoardState) => void, message?: string) => Promise<boolean>;
@@ -14,17 +14,39 @@ export function AgendaTiles({ state, offset = 0, profileId = "", compact = false
   const days = weekDates(new Date(), offset).map((date, weekday) => ({ date, weekday, activities: occupied.find(day => day.date === date)?.activities || [] })).filter(day => !todayOnly || day.date === today);
   if (todayOnly && !days.some(day => day.activities.length)) return <p className={s.agendaEmpty}>Nothing scheduled today.</p>;
   const layout = days.map(day => ({ ...day, groups: activityGroups(day.activities) }));
-  return <div className={`${s.agenda} ${compact ? s.compactAgenda : ""}`} style={{ gridTemplateColumns: layout.map(day => `minmax(${day.groups.some(group => group.length > 1) ? 248 : compact ? 116 : 125}px, 1fr)`).join(" ") }}>{layout.map(day => <section className={s.agendaDay} key={day.date}>
+  const tile = (activity: WeeklyActivity) => <>
+    <time>{clockLabel(activity.startTime)}{activity.endTime && <span>–{clockLabel(activity.endTime)}</span>}</time>
+    <div><strong>{activity.title}</strong>{showPeople && <small>{activity.profileIds.length ? activity.profileIds.map(id => state.profiles.find(p => p.id === id)?.name || "Unknown").join(" & ") : "Everyone"}</small>}</div>
+    {(onEdit || onRemove) && <div className={s.activityActions}>{onEdit && <button className={s.textButton} onClick={() => onEdit(activity.id)} aria-label={`Edit ${activity.title}`}>Edit</button>}{onRemove && <button className={s.textButton} onClick={() => onRemove(activity.id)} aria-label={`Remove ${activity.title}`}>Remove</button>}</div>}
+  </>;
+  return <div className={`${s.agenda} ${compact ? s.compactAgenda : ""}`} style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(192px, 1fr))` }}>{layout.map(day => <section className={s.agendaDay} key={day.date}>
     <h3>{weekdayNames[day.weekday].slice(0, 3)}{day.date === today && <small>Today</small>}</h3>
     {day.weekday < 5 && <DropPickNotes state={state} weekday={day.weekday} profileId={profileId}/>}
-    <div className={s.agendaTiles}>{day.groups.map((lanes, index) => <div className={s.activityGroupScroll} key={index} role={lanes.length > 1 ? "group" : undefined} aria-label={lanes.length > 1 ? "Overlapping activities" : undefined} tabIndex={lanes.length > 2 ? 0 : undefined}>
-      <div className={s.activityGroup} style={{ gridTemplateColumns: `repeat(${lanes.length}, minmax(116px, 1fr))` }}>{lanes.map((lane, laneIndex) => <div className={s.activityLane} key={laneIndex}>{lane.map(activity => <article key={activity.id} className={`${s.activityTile} ${s[activity.color]}`}>
-        <time>{clockLabel(activity.startTime)}{activity.endTime && <span>–{clockLabel(activity.endTime)}</span>}</time>
-        <div><strong>{activity.title}</strong>{showPeople && <small>{activity.profileIds.length ? activity.profileIds.map(id => state.profiles.find(p => p.id === id)?.name || "Unknown").join(" & ") : "Everyone"}</small>}</div>
-        {(onEdit || onRemove) && <div className={s.activityActions}>{onEdit && <button className={s.textButton} onClick={() => onEdit(activity.id)} aria-label={`Edit ${activity.title}`}>Edit</button>}{onRemove && <button className={s.textButton} onClick={() => onRemove(activity.id)} aria-label={`Remove ${activity.title}`}>Remove</button>}</div>}
-      </article>)}</div>)}</div>
-    </div>)}</div>
+    <div className={s.agendaTiles}>{day.groups.map((lanes, index) => lanes.length > 1 ? <TimedActivities key={index} lanes={lanes} renderTile={tile}/> : lanes[0].map(activity => <article key={activity.id} className={`${s.activityTile} ${s[activity.color]}`}>{tile(activity)}</article>))}</div>
   </section>)}</div>;
+}
+
+function TimedActivities({ lanes, renderTile }: { lanes: WeeklyActivity[][]; renderTile: (activity: WeeklyActivity) => ReactNode }) {
+  const group = useRef<HTMLDivElement>(null);
+  const [minimumHeights, setMinimumHeights] = useState<Record<string, number>>({});
+  const signature = lanes.flat().map(activity => activity.id).join("|");
+  useLayoutEffect(() => {
+    const measure = () => {
+      const heights: Record<string, number> = {};
+      group.current?.querySelectorAll<HTMLElement>("[data-activity-content]").forEach(element => { heights[element.dataset.activityContent!] = element.offsetHeight + 28; });
+      setMinimumHeights(previous => Object.keys(heights).length === Object.keys(previous).length && Object.entries(heights).every(([id, height]) => previous[id] === height) ? previous : heights);
+    };
+    const observer = new ResizeObserver(measure);
+    group.current?.querySelectorAll("[data-activity-content]").forEach(element => observer.observe(element));
+    measure();
+    return () => observer.disconnect();
+  }, [signature]);
+  const layout = timedActivityLayout(lanes, minimumHeights);
+  return <div className={s.activityGroupScroll} role="group" aria-label="Overlapping activities, positioned by time" tabIndex={lanes.length > 2 ? 0 : undefined}>
+    <div ref={group} className={s.timedActivities} style={{ height: layout.height, minWidth: lanes.length > 2 ? lanes.length * 90 : undefined }}>
+      {layout.items.map(({ activity, column, top, height }) => <article key={activity.id} className={`${s.activityTile} ${s[activity.color]}`} style={{ top, height, left: `calc(${column * 100 / lanes.length}% + ${column ? 4 : 0}px)`, width: `calc(${100 / lanes.length}% - 4px)` }}><div data-activity-content={activity.id} className={s.activityTileContent}>{renderTile(activity)}</div></article>)}
+    </div>
+  </div>;
 }
 
 export function WeeklySchedule({ state, profileId, busy, commit, onPin, onOptions, pinned, initialEditing = null }: { state: BoardState; profileId: string; busy: boolean; commit: BoardCommit; onPin: () => void; onOptions: () => void; pinned: boolean; initialEditing?: string | null }) {

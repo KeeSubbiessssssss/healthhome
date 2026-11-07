@@ -82,6 +82,9 @@ export function FreeNote({ id, color, placement, front, disabled, heading, resiz
 
   function start(event: ReactPointerEvent<HTMLElement>, mode: Gesture["mode"]) {
     if (disabled || event.button !== 0 || !event.isPrimary) return;
+    if (window.matchMedia("(max-width: 760px), (max-width: 1000px) and (max-height: 500px)").matches && note.current?.closest('[data-reading="true"]')) return;
+    // Touch scrolling belongs to the paper body; moving a note starts at its grip.
+    if (event.pointerType === "touch" && mode === "move" && !(event.target as HTMLElement).closest("[data-note-grip]")) return;
     const target = event.target as HTMLElement;
     if (mode === "move" && target.closest("button,a,input,select,textarea,label,summary,details,[data-note-scroll]") && !target.closest("[data-note-grip]")) return;
     const el = note.current!;
@@ -149,7 +152,7 @@ export function FreeNote({ id, color, placement, front, disabled, heading, resiz
     {placement.attachment === "pin" && <span data-fastener data-variant={appearance.variant} className={s.realPin} style={fastenerStyle} aria-hidden="true"><span/></span>}
     {placement.attachment === "tape" && <span data-fastener data-variant={appearance.variant} className={s.realTape} style={fastenerStyle} aria-hidden="true"><span/></span>}
     <div className={s.freeTools}>
-      <button type="button" data-note-grip className={s.noteGrip} disabled={disabled} aria-label="Move note. Drag freely or use arrow keys" title="Drag anywhere · Arrow keys move · Shift for fine movement" onKeyDown={keyboard}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01" strokeWidth="4"/></svg></button>
+      <button type="button" data-note-grip className={s.noteGrip} disabled={disabled} aria-label="Move note. Drag freely or use arrow keys" title="Drag the grip · Arrow keys move · Shift for fine movement" onKeyDown={keyboard}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01" strokeWidth="4"/></svg></button>
       {heading && <h2 className={s.pinboardNoteHeading}>{heading}</h2>}
       <div>{palette}</div>
     </div>
