@@ -7,6 +7,7 @@ import s from "./family-board.module.css";
 type Gesture = { mode: "move" | "rotate" | "resize"; pointer: number; startX: number; startY: number; grabX: number; grabY: number; original: NotePlacement; active: boolean; };
 type Props = { id: string; color: string; placement: NotePlacement; front: number; disabled: boolean; heading?: ReactNode; resizable?: boolean; palette: ReactNode; children: ReactNode; onChange: (p: NotePlacement) => Promise<boolean> };
 const transform = (p: NotePlacement) => `translate3d(${p.x}px, ${p.y}px, 0) rotate(${p.angle}deg)`;
+const scheduleScale = (p: NotePlacement) => Math.sqrt(((p.width || 600) / 600) * ((p.height || 300) / 300));
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function FreeNote({ id, color, placement, front, disabled, heading, resizable = false, palette, children, onChange }: Props) {
@@ -20,7 +21,7 @@ export function FreeNote({ id, color, placement, front, disabled, heading, resiz
   const appearance = fastenerAppearance(placement);
 
   const paint = useCallback(() => {
-    if (note.current) { note.current.style.transform = transform(current.current); if (resizable) { note.current.style.width = `${current.current.width || 600}px`; note.current.style.height = `${current.current.height || 300}px`; } }
+    if (note.current) { note.current.style.transform = transform(current.current); if (resizable) { note.current.style.width = `${current.current.width || 600}px`; note.current.style.height = `${current.current.height || 300}px`; note.current.style.setProperty("--schedule-content-scale", String(scheduleScale(current.current))); } }
   }, [resizable]);
   const { x, y, angle, z, attachment, width, height } = placement;
   const { variant, offset, angle: fastenerAngle, size } = appearance;
@@ -146,7 +147,7 @@ export function FreeNote({ id, color, placement, front, disabled, heading, resiz
     void onChange(current.current).then(ok => { if (!ok) { current.current = original; paint(); } });
   }
   const fastenerStyle = { left: `${appearance.offset}%`, transform: `rotate(${appearance.angle}deg)`, "--tape-width": `${appearance.size}px` } as CSSProperties;
-  return <article ref={note} data-card-id={id} data-attachment={placement.attachment} className={`${s.paper} ${s.freeNote} ${s[color]} ${resizable ? s.schedulePaper : ""}`} style={{ transform: transform(placement), zIndex: placement.z, ...(resizable ? { width: placement.width || 600, height: placement.height || 300 } : {}) }}
+  return <article ref={note} data-card-id={id} data-attachment={placement.attachment} className={`${s.paper} ${s.freeNote} ${s[color]} ${resizable ? s.schedulePaper : ""}`} style={{ transform: transform(placement), zIndex: placement.z, ...(resizable ? { width: placement.width || 600, height: placement.height || 300, "--schedule-content-scale": scheduleScale(placement) } : {}) } as CSSProperties}
     onPointerDown={event => start(event, "move")} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={() => { if (gesture.current) cancel(); }}
     onClickCapture={event => { if (suppressClick.current) { event.preventDefault(); event.stopPropagation(); suppressClick.current = false; } }}>
     {placement.attachment === "pin" && <span data-fastener data-variant={appearance.variant} className={s.realPin} style={fastenerStyle} aria-hidden="true"><span/></span>}
@@ -156,7 +157,7 @@ export function FreeNote({ id, color, placement, front, disabled, heading, resiz
       {heading && <h2 className={s.pinboardNoteHeading}>{heading}</h2>}
       <div>{palette}</div>
     </div>
-    {resizable ? <div className={s.scheduleNoteBody} data-note-scroll>{children}</div> : children}
+    {resizable ? <div className={s.scheduleNoteBody} data-note-scroll><div className={s.scheduleScaledContent}>{children}</div></div> : children}
     {resizable && <button type="button" className={s.resizeNote} aria-label="Resize schedule note" title="Drag to resize · Arrow keys adjust size · Shift for fine adjustments" disabled={disabled} onPointerDown={event => start(event, "resize")} onKeyDown={event => {
       if (disabled) return;
       const step = event.shiftKey ? 2 : 20; const delta = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];

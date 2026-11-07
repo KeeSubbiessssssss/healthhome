@@ -776,3 +776,11 @@
   .schoolChildRow select { padding-left: 8px; padding-right: 28px; background-position: right 8px center; }
   .schoolDayChild { font-size: 12px; }
 }
+
+/* Scale schedule content with the paper, using the saved 600 × 300 base size. */
+.scheduleScaledContent { zoom: var(--schedule-content-scale, 1); }
+.schedulePaper .freeTools > .pinboardNoteHeading { font-size: calc(23px * var(--schedule-content-scale, 1)); }
+@media(max-width:760px), (max-width:1000px) and (max-height:500px) {
+  .canvasWorkstation[data-reading=true] .scheduleScaledContent { zoom: 1; }
+  .canvasWorkstation[data-reading=true] .schedulePaper .pinboardNoteHeading { font-size: 27px; }
+}
