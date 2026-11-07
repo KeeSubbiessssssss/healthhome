@@ -3,8 +3,9 @@ export type Task = { id: string; text: string; done: boolean; assigneeId: string
 export type TaskList = { id: string; title: string; color: string; items: Task[] };
 export type GiftProductLink = { label: string; url: string };
 export type Gift = { id: string; recipientId: string; occasion: "birthday" | "christmas"; occasions?: ("birthday" | "christmas")[]; year: number; name: string; cost: number | null; productUrl?: string; productLinks?: GiftProductLink[]; status: "idea" | "requested" | "bought" | "wrapped"; notes: string };
-export type DoseLog = { id: string; occurredAt: string; units: number; note: string; reversed: boolean };
-export type Medication = { id: string; profileId: string; name: string; strength: string; instructions: string; expiresOn?: string; unit: string; unitsLeft: number; unitsPerDose: number; dosesPerDay: number; refillAt: number; unitsPerRefill: number; repeats: number; logs: DoseLog[]; archived: boolean };
+export type DoseLog = { id: string; occurredAt: string; units: number; note: string; reversed: boolean; tracksStock?: boolean };
+export type StockChange = { id: string; occurredAt: string; action: "consume" | "replenish" | "correct" | "repeat"; before: number; after: number; note: string };
+export type Medication = { id: string; profileId: string; name: string; strength: string; instructions: string; doseTiming?: string; stockChanges?: StockChange[]; expiresOn?: string; unit: string; unitsLeft: number; unitsPerDose: number; dosesPerDay: number; refillAt: number; unitsPerRefill: number; repeats: number; logs: DoseLog[]; archived: boolean };
 export type Fastener = { variant: number; offset: number; angle: number; size: number };
 export type NotePlacement = { fastener?: Fastener; x: number; y: number; angle: number; z: number; attachment: "pin" | "tape" | "loose" };
 export type BoardState = { schemaVersion: 1; profiles: Profile[]; lists: TaskList[]; gifts: Gift[]; medications: Medication[]; order: string[]; cardColors?: Record<string, string>; noteLayout?: Record<string, NotePlacement>; removedNotes?: string[] };
@@ -45,8 +46,9 @@ export function parseBoard(value: unknown): BoardState {
   }
   for (const gift of board.gifts) { id(gift.id); check(profile(gift.recipientId) && text(gift.name, true) && text(gift.notes) && (gift.productUrl === undefined || (text(gift.productUrl) && productLink(gift.productUrl) === gift.productUrl)) && (gift.productLinks === undefined || (Array.isArray(gift.productLinks) && gift.productLinks.length <= 20 && gift.productLinks.every(link => !!link && text(link.label) && link.label.length <= 200 && text(link.url, true) && productLink(link.url) === link.url))) && ["birthday", "christmas"].includes(gift.occasion) && ["idea", "requested", "bought", "wrapped"].includes(gift.status) && (gift.occasions === undefined || (Array.isArray(gift.occasions) && gift.occasions.length > 0 && gift.occasions.length <= 2 && new Set(gift.occasions).size === gift.occasions.length && gift.occasions.every(o => ["birthday", "christmas"].includes(o)) && gift.occasions.includes(gift.occasion))) && Number.isInteger(gift.year) && gift.year >= 2000 && gift.year <= 2200 && (gift.cost === null || number(gift.cost))); }
   for (const m of board.medications) {
-    id(m.id); check(profile(m.profileId, true) && text(m.name, true) && text(m.strength) && text(m.instructions) && (m.expiresOn === undefined || date(m.expiresOn)) && text(m.unit, true) && [m.unitsLeft, m.unitsPerDose, m.dosesPerDay, m.refillAt, m.unitsPerRefill, m.repeats].every(number) && Number.isInteger(m.repeats) && Number.isInteger(m.dosesPerDay) && typeof m.archived === "boolean" && Array.isArray(m.logs));
-    for (const log of m.logs) { id(log.id); check(number(log.units) && log.units > 0 && typeof log.occurredAt === "string" && !Number.isNaN(Date.parse(log.occurredAt)) && text(log.note) && typeof log.reversed === "boolean"); }
+    id(m.id); check(profile(m.profileId, true) && text(m.name, true) && text(m.strength) && text(m.instructions) && (m.doseTiming === undefined || text(m.doseTiming)) && (m.expiresOn === undefined || date(m.expiresOn)) && text(m.unit, true) && [m.unitsLeft, m.unitsPerDose, m.dosesPerDay, m.refillAt, m.unitsPerRefill, m.repeats].every(number) && Number.isInteger(m.repeats) && Number.isInteger(m.dosesPerDay) && typeof m.archived === "boolean" && Array.isArray(m.logs));
+    if (m.stockChanges !== undefined) { check(Array.isArray(m.stockChanges) && m.stockChanges.length <= 2000); for (const change of m.stockChanges) { id(change.id); check(["consume", "replenish", "correct", "repeat"].includes(change.action) && number(change.before) && number(change.after) && text(change.note) && typeof change.occurredAt === "string" && !Number.isNaN(Date.parse(change.occurredAt))); } }
+    for (const log of m.logs) { id(log.id); check(number(log.units) && log.units > 0 && typeof log.occurredAt === "string" && !Number.isNaN(Date.parse(log.occurredAt)) && text(log.note) && typeof log.reversed === "boolean" && (log.tracksStock === undefined || typeof log.tracksStock === "boolean")); }
   }
   const cards = new Set(["welcome", "medications", "gifts", ...board.lists.map(l => l.id)]);
   if (board.cardColors !== undefined) {
@@ -62,20 +64,30 @@ export function parseBoard(value: unknown): BoardState {
   return board;
 }
 
-export function logDose(medication: Medication, units: number, occurredAt: string, note = ""): Medication {
+export function logDose(medication: Medication, units: number, occurredAt: string, note = "", tracksStock = true): Medication {
   if (!Number.isFinite(units) || units <= 0) throw new Error("Enter a dose greater than zero.");
-  if (units > medication.unitsLeft) throw new Error("There isn’t enough medication left for that dose. Check the supply first.");
+  if (tracksStock && units > medication.unitsLeft) throw new Error("There isn’t enough medication left for that dose. Check the supply first.");
   if (Number.isNaN(Date.parse(occurredAt)) || Date.parse(occurredAt) > Date.now() + 60_000) throw new Error("Choose a dose time that isn’t in the future.");
-  return { ...medication, unitsLeft: Math.round((medication.unitsLeft - units) * 10000) / 10000, logs: [...medication.logs, { id: newId(), units, occurredAt, note, reversed: false }] };
+  return { ...medication, unitsLeft: tracksStock ? Math.round((medication.unitsLeft - units) * 10000) / 10000 : medication.unitsLeft, logs: [...medication.logs, { id: newId(), units, occurredAt, note, reversed: false, tracksStock }] };
 }
 export function undoDose(medication: Medication, logId: string): Medication {
   const log = medication.logs.find(l => l.id === logId);
   if (!log || log.reversed) throw new Error("That dose has already been restored.");
-  return { ...medication, unitsLeft: Math.round((medication.unitsLeft + log.units) * 10000) / 10000, logs: medication.logs.map(l => l.id === logId ? { ...l, reversed: true } : l) };
+  return { ...medication, unitsLeft: log.tracksStock === false ? medication.unitsLeft : Math.round((medication.unitsLeft + log.units) * 10000) / 10000, logs: medication.logs.map(l => l.id === logId ? { ...l, reversed: true } : l) };
 }
-export function fillRepeat(medication: Medication): Medication {
+export const totalDailyDose = (medication: Pick<Medication, "unitsPerDose" | "dosesPerDay">) => Math.round(medication.unitsPerDose * medication.dosesPerDay * 10000) / 10000;
+export function adjustInventory(medication: Medication, action: StockChange["action"], amount: number, note = ""): Medication {
+  if (!["consume", "replenish", "correct", "repeat"].includes(action)) throw new Error("Choose an inventory action.");
+  if (!Number.isFinite(amount) || amount < 0 || amount > 1e9 || (action !== "correct" && amount === 0)) throw new Error("Enter a valid inventory quantity.");
+  if (action === "repeat" && medication.repeats < 1) throw new Error("There are no repeats remaining.");
+  const after = Math.round((action === "correct" ? amount : medication.unitsLeft + (action === "consume" ? -amount : amount)) * 10000) / 10000;
+  if (after < 0 || after > 1e9) throw new Error("That change would leave an invalid stock balance. Check the quantity.");
+  if ((medication.stockChanges?.length || 0) >= 2000) throw new Error("Inventory history is full.");
+  return { ...medication, unitsLeft: after, repeats: medication.repeats - (action === "repeat" ? 1 : 0), stockChanges: [...(medication.stockChanges || []), { id: newId(), occurredAt: new Date().toISOString(), action, before: medication.unitsLeft, after, note }] };
+}
+export function fillRepeat(medication: Medication, note = "Prescription repeat filled"): Medication {
   if (medication.repeats <= 0 || medication.unitsPerRefill <= 0) throw new Error("Add a repeat and a refill quantity before filling it.");
-  return { ...medication, unitsLeft: medication.unitsLeft + medication.unitsPerRefill, repeats: medication.repeats - 1 };
+  return adjustInventory(medication, "repeat", medication.unitsPerRefill, note);
 }
 export function moveCard(order: string[], from: string, to: string) {
   if (from === to || !order.includes(from) || !order.includes(to)) return order;

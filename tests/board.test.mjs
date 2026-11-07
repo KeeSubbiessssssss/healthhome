@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { emptyBoard, defaultPlacement, constrainPlacement, replaceFastener, fastenerAppearance, fillRepeat, logDose, moveCard, parseBoard, productLink, linksForGift, occasionsForGift, giftIsBought, undoDose } from '../src/lib/board.ts';
+import { emptyBoard, adjustInventory, totalDailyDose, defaultPlacement, constrainPlacement, replaceFastener, fastenerAppearance, fillRepeat, logDose, moveCard, parseBoard, productLink, linksForGift, occasionsForGift, giftIsBought, undoDose } from '../src/lib/board.ts';
 const medication = () => ({ id: 'med', profileId: 'pet', name: 'Test medication', strength: '', instructions: '', unit: 'mL', unitsLeft: 2, unitsPerDose: .3, dosesPerDay: 1, refillAt: .5, unitsPerRefill: 10, repeats: 2, logs: [], archived: false });
 const board = () => ({ ...emptyBoard(), profiles: [{ id: 'pet', name: 'Test pet', kind: 'pet', birthday: '', species: 'Dog', color: 'sage' }], medications: [medication()] });
 test('people and pets can own medications without login identities', () => {
@@ -135,4 +135,46 @@ test('multiple present links persist and existing single links remain available'
  assert.deepEqual(linksForGift({ ...gift, productLinks: [] }), []);
  assert.throws(() => parseBoard({ ...state, gifts: [{ ...gift, productLinks: [{ label: 'Bad link', url: 'javascript:alert(1)' }] }] }));
  assert.throws(() => parseBoard({ ...state, gifts: [{ ...gift, productLinks: [{ label: 'Missing URL', url: '' }] }] }));
+});
+
+test('daily dose is calculated with fractional units and supports as-needed schedules', () => {
+ assert.equal(totalDailyDose({ unitsPerDose: .3, dosesPerDay: 3 }), .9);
+ assert.equal(totalDailyDose({ unitsPerDose: 2, dosesPerDay: 0 }), 0);
+});
+test('inventory consumption, replenishment and corrections preserve medication directions', () => {
+ const original = { ...medication(), doseTiming: 'Morning with food' };
+ const consumed = adjustInventory(original, 'consume', .3, 'Spilled');
+ const replenished = adjustInventory(consumed, 'replenish', 10, 'New bottle');
+ const corrected = adjustInventory(replenished, 'correct', 0, 'Stock count');
+ assert.equal(consumed.unitsLeft, 1.7); assert.equal(replenished.unitsLeft, 11.7); assert.equal(corrected.unitsLeft, 0);
+ for (const key of ['unitsPerDose', 'dosesPerDay', 'instructions', 'doseTiming', 'repeats']) assert.equal(corrected[key], original[key]);
+ assert.deepEqual(corrected.logs, []);
+ assert.equal(corrected.stockChanges.length, 3);
+ assert.equal(corrected.stockChanges[2].before, 11.7); assert.equal(corrected.stockChanges[2].after, 0);
+ assert.equal(original.unitsLeft, 2); assert.equal(original.stockChanges, undefined);
+ const state = board(); state.medications = [corrected];
+ assert.deepEqual(parseBoard(JSON.parse(JSON.stringify(state))).medications[0], corrected);
+});
+test('invalid inventory changes cannot produce a negative or unbounded balance', () => {
+ for (const amount of [-1, NaN, Infinity, 1e9 + 1]) assert.throws(() => adjustInventory(medication(), 'correct', amount));
+ assert.throws(() => adjustInventory(medication(), 'consume', 3));
+ assert.throws(() => adjustInventory(medication(), 'replenish', 0));
+ assert.throws(() => adjustInventory(medication(), 'unknown', 1));
+ assert.throws(() => fillRepeat({ ...medication(), repeats: 0 }));
+});
+test('dose records can leave stock unchanged, including when reversed', () => {
+ const original = { ...medication(), unitsLeft: 0 };
+ const logged = logDose(original, .3, new Date().toISOString(), 'Stock already adjusted', false);
+ assert.equal(logged.unitsLeft, 0); assert.equal(logged.logs[0].tracksStock, false);
+ assert.equal(undoDose(logged, logged.logs[0].id).unitsLeft, 0);
+});
+test('repeat fills are audited while legacy medication data remains readable', () => {
+ const state = board(); assert.doesNotThrow(() => parseBoard(state));
+ state.medications[0] = fillRepeat(state.medications[0], 'Collected from pharmacy');
+ assert.equal(state.medications[0].stockChanges[0].action, 'repeat');
+ assert.equal(state.medications[0].stockChanges[0].note, 'Collected from pharmacy');
+ assert.doesNotThrow(() => parseBoard(state));
+ state.medications[0].doseTiming = 123; assert.throws(() => parseBoard(state));
+ delete state.medications[0].doseTiming;
+ state.medications[0].stockChanges[0].after = -1; assert.throws(() => parseBoard(state));
 });

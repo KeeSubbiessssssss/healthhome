@@ -341,3 +341,15 @@
   .canvasDockActions > .date { order: 1; }
   .canvasDockActions > button { order: 4; margin-left: auto; }
 }
+
+.medicationDirections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; margin: 20px 0; }
+.medicationDirections dt { font-size: 11px; margin-bottom: 5px; }
+.medicationDirections dd { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.medInventory { margin: 22px 0; padding-top: 18px; border-top: 1px dashed currentColor; }
+.inventoryHeading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.inventoryHeading h3 { margin: 0; font: 26px var(--font-handwriting), cursive; }
+.inventoryHeading button { white-space: normal; }
+.stockHistory { margin-top: 14px; font-size: 12px; }
+.stockHistory summary { cursor: pointer; padding-block: 8px; }
+.stockCheckbox { display: flex; align-items: center; gap: 10px; font-size: 13px; min-height: 42px; }
+.field small { font-size: 11px; font-weight: 400; line-height: 1.5; }
