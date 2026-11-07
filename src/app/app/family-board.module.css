@@ -315,7 +315,6 @@
 
 /* The pinboard fills the workspace, right up to the navigation and window edges. */
 .boardMain { max-width: none; padding: 0; height: 100dvh; display: flex; flex-direction: column; position: relative; overflow: hidden; }
-.boardMain > .topbar { padding-inline: 24px; flex-shrink: 0; }
 .boardMain > .feedback { position: absolute; bottom: 16px; right: 16px; min-height: 0; z-index: 20; pointer-events: none; }
 .boardMain > .footer { display: none; }
 .boardMain > .editor { margin: 16px 24px; flex-shrink: 0; max-height: 60dvh; overflow-y: auto; }
@@ -327,6 +326,18 @@
   .boardShell { height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   .boardShell > .sidebar { flex-shrink: 0; }
   .boardMain { flex: 1; height: auto; min-height: 0; }
-  .boardMain > .topbar { padding-inline: 20px; }
   .boardMain > .editor { margin-inline: 16px; }
+}
+
+.boardMain .canvasDock { gap: 16px 24px; padding: 16px 24px; }
+.canvasDock > .topbarTitle { flex: 1; color: #2d2b68; }
+.canvasDockActions { gap: 20px; }
+.canvasDockActions > button { min-height: 42px; padding-inline: 18px; }
+@media(max-width: 760px) {
+  .boardMain .canvasDock { padding: 14px 20px; gap: 14px; }
+  .canvasDock > .topbarTitle { flex-basis: calc(100% - 110px); }
+  .canvasDock .zoomControls { order: 3; }
+  .canvasDockActions { display: contents; }
+  .canvasDockActions > .date { order: 1; }
+  .canvasDockActions > button { order: 4; margin-left: auto; }
 }
