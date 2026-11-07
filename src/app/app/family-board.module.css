@@ -316,7 +316,7 @@
 /* The pinboard fills the workspace, right up to the navigation and window edges. */
 .boardMain { max-width: none; padding: 0; height: 100dvh; display: flex; flex-direction: column; position: relative; overflow: hidden; }
 .boardMain > .topbar { padding-inline: 24px; flex-shrink: 0; }
-.boardMain > .feedback { position: absolute; top: 82px; right: 16px; min-height: 0; z-index: 20; pointer-events: none; }
+.boardMain > .feedback { position: absolute; bottom: 16px; right: 16px; min-height: 0; z-index: 20; pointer-events: none; }
 .boardMain > .footer { display: none; }
 .boardMain > .editor { margin: 16px 24px; flex-shrink: 0; max-height: 60dvh; overflow-y: auto; }
 .boardMain > .error { margin: 12px 24px; flex-shrink: 0; }
@@ -328,6 +328,5 @@
   .boardShell > .sidebar { flex-shrink: 0; }
   .boardMain { flex: 1; height: auto; min-height: 0; }
   .boardMain > .topbar { padding-inline: 20px; }
-  .boardMain > .feedback { top: 71px; }
   .boardMain > .editor { margin-inline: 16px; }
 }
