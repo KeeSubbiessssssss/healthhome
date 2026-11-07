@@ -31,7 +31,9 @@ export async function PUT(request: Request) {
   try {
     const raw = await request.text();
     if (raw.length > 512_000) return Response.json({ error: "This board is too large to save." }, { status: 413 });
-    const body = JSON.parse(raw); state = parseBoard(body.state); version = body.version;
+    const body = JSON.parse(raw);
+    if (body.importing === true && member.role !== "owner") return Response.json({ error: "Only the household owner can import a board." }, { status: 403 });
+    state = parseBoard(body.state); version = body.version;
     if (!Number.isInteger(version) || version < 0) throw new Error("Invalid board version.");
   } catch { return Response.json({ error: "The board contains invalid details." }, { status: 400 }); }
   try {

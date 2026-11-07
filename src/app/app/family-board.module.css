@@ -291,5 +291,26 @@
 .accessRows li > div { min-width: 0; overflow-wrap: anywhere; }.accessRows strong, .accessRows small { display: block; }.accessRows small { margin-top: 4px; color: #756c59; font-size: 12px; }.accessRows button { flex-shrink: 0; }
 .accountControls { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 24px; }.accountControls p { flex-basis: 100%; }
 .verificationForm { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; width: 100%; }.verificationForm input { max-width: 260px; }
+.transferPanel { margin-top: 28px; padding: 25px; background: #e9ff64; color: #25274d; border-radius: 2px 2px 14px 2px; }
+.transferPanel h2 { margin: 0; font: 30px var(--font-handwriting), cursive; }.transferPanel p { max-width: 70ch; line-height: 1.6; }
 @media(max-width: 520px) { .accessPanel { padding: 18px; }.inviteForm { align-items: stretch; flex-direction: column; }.accessPanel .sectionHeading { align-items: start; flex-direction: column; gap: 6px; }.accessRows li { flex-wrap: wrap; gap: 10px; } }
 @media(max-width: 520px) { .giftLinkRow { grid-template-columns: minmax(0, 1fr) 30px; gap: 8px; }.giftLinkRow > label:first-child { grid-column: 1 / -1; }.giftLinkRow > button { grid-column: 2; } }
+
+/* A bright studio desk: blueberry folders, turquoise board, lime and coral tape. */
+.shell { --scrap-ink: #25274d; background: #f0fffb; }
+.sidebar { background: #2d2b68; border-color: #272456; color: #fffdf5; }
+.brand { color: #fffdf5; }.brandDot { color: #ff8965; }.brandMark { background: #e9ff64; color: #2d2b68; }
+.homeLabel, .sidebarTitle, .sidebarBottom, .sidebarBottom strong, .sidebarBottom small { color: #d0e6f2; }
+.sidebarFamily, .sidebarBottom { border-color: #707ab0; }.sidebarFamily > button { color: #fffdf5; }.sidebarFamily > button small { color: #d0e6f2; }.sidebarFamily > button:hover { background: #414078; }
+.navItem { color: #eef4ff; }.navItem:hover { background: #42407c; color: #fffdf5; }.navItem small { background: #525088; color: #fffdf5; }
+.activeNav, .activeNav:hover { background: #e9ff64; color: #25274d; }.activeNav::before { background: #ff8965; }.activeNav small { background: #d2e74b; color: #25274d; }
+.topbar { border-color: #85c7c3; color: #365d69; }.topbarTitle { color: #2d2b68; }.date { background: #ff8965; color: #3d2440; }
+.pageHeading h1 { background: linear-gradient(transparent 76%, #e9ff64 76%, #e9ff64 94%, transparent 94%); }.pageHeading p, .viewIntro, .viewToolbar p { color: #365d69; }
+.primary { background: #3d3588; border-color: #3d3588; color: #fffdf5; }.primary:hover:not(:disabled) { background: #2c246f; }.secondary { background: #fffef6; border-color: #77aaa9; color: #2d2b68; }.secondary:hover:not(:disabled) { background: #e9ff64; }
+.canvasDock { background: #dfff68; color: #263b48; border-radius: 8px 8px 0 0; padding: 14px 18px; }
+.canvasHint { color: #263b48; }.zoomControls button { background: #fffef5; color: #2d2b68; }.zoomControls output { color: #263b48; }.canvasDockActions button { background: #ff8965; color: #3d2440; font-weight: 600; }
+.canvasViewport { background: #087b77; border-color: #076d6a; scrollbar-color: #b7f4ce #078b88; }.freeCanvas { background: transparent; }.canvasInstructions { color: #fffef5; }.canvasInstructions small { color: #e3fff6; }
+.settingsGroup, .accessPanel { background: #fffef6; }.accessPanel { border-color: #079c97; }.accessPanel p, .accessRows small, .accessHint { color: #365d69; }.inviteResult { background: #e9ff64; }.storageNote { color: #365d69; border-color: #85c7c3; }.footer { color: #365d69; border-color: #85c7c3; }
+.segmented button { background: #cdeee5; color: #294e5b; }.segmented button[aria-pressed=true] { background: #3d3588; color: #fffdf5; }.profileFilters > button { background: #fffef6; color: #294e5b; }.profileFilters > button[aria-pressed=true] { background: #3d3588; color: #fffdf5; }.profileFilters > button:hover:not([aria-pressed=true]) { background: #e9ff64; }
+.field input, .field select, .field textarea { border-color: #8fb8b5; }.field input:focus, .field select:focus, .field textarea:focus { border-color: #dc4d2e; }.giftLinkEditor { border-color: #8fb8b5; }
+.addNote { background: #dfff6830; border-color: #328b88; color: #294e5b; }.addNote > span { background: #ff8965; color: #3d2440; }.addNote:hover { background: #e9ff64; }

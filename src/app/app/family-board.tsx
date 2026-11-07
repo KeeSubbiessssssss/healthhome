@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { colors, emptyBoard, fillRepeat, logDose, newId, defaultPlacement, constrainPlacement, type NotePlacement, parseBoard, productLink, linksForGift, occasionsForGift, giftIsBought, undoDose, type BoardState, type Gift, type Medication, type Profile, type TaskList } from "@/lib/board";
+import { colors, emptyBoard, mergeBoards, fillRepeat, logDose, newId, defaultPlacement, constrainPlacement, type NotePlacement, parseBoard, productLink, linksForGift, occasionsForGift, giftIsBought, undoDose, type BoardState, type Gift, type Medication, type Profile, type TaskList } from "@/lib/board";
 import s from "./family-board.module.css";
 import { FreeNote } from "./free-note";
 import { BoardCanvas } from "./board-canvas";
 import { HouseholdAccess } from "./household-access";
+import { BoardTransfer } from "./board-transfer";
 
 type View = "board" | "lists" | "medications" | "gifts" | "settings";
 type Editor = { type: "profile" | "list" | "gift" | "medication" | "dose" | "task"; id?: string; listId?: string; kind?: "person" | "pet" };
@@ -97,14 +98,14 @@ export function FamilyBoard({ local }: { local: boolean }) {
   }, [local]);
   useEffect(() => { if (editor) { editorRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); editorRef.current?.querySelector<HTMLInputElement>("input")?.focus(); } }, [editor]);
 
-  async function commit(change: (draft: BoardState) => void, message = "Saved.") {
+  async function commit(change: (draft: BoardState) => void, message = "Saved.", importing = false) {
     if (!ready || saving.current) return false;
     saving.current = true; setBusy(true); setError("");
     try {
       const next = structuredClone(state); change(next); parseBoard(next);
       if (local) window.localStorage.setItem(storageKey, JSON.stringify(next));
       else {
-        const response = await fetch("/api/board", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: next, version }) });
+        const response = await fetch("/api/board", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: next, version, importing }) });
         const payload = await response.json(); if (!response.ok) throw new Error(payload.error || "Could not save. Please try again."); setVersion(payload.version);
       }
       await updateSurface(() => { setState(next); setNotice(message); }); return true;
@@ -216,7 +217,7 @@ export function FamilyBoard({ local }: { local: boolean }) {
   }
   function renderSettings() {
     const profileGroup = (title: string, profiles: Profile[], kind: "person" | "pet") => <section className={s.settingsGroup}><div className={s.sectionHeading}><h2>{title}</h2><button className={s.secondary} onClick={() => open({ type: "profile", kind })}><Icon name="plus" size={16}/>Add {kind === "pet" ? "pet" : "member"}</button></div>{profiles.length === 0 ? <div className={s.emptyGroup}><Icon name={kind === "pet" ? "paw" : "person"} size={30}/><h3>{kind === "pet" ? "The furry part of the family." : "Make room for your people."}</h3><p>{kind === "pet" ? "Add pets so you can keep their medication and care together." : "Add family members to assign tasks, plan presents, and track medication."}</p></div> : <ul className={s.profileRows}>{profiles.map(p => <li key={p.id}><span className={`${s.avatar} ${s[p.color]}`}>{p.kind === "pet" ? <Icon name="paw"/> : p.name.slice(0, 1)}</span><div><strong>{p.name}</strong><small>{p.species || (kind === "pet" ? "Pet" : "Family member")}{p.birthday ? ` · Birthday ${day(p.birthday)}` : ""}</small></div><button className={s.iconButton} onClick={() => open({ type: "profile", id: p.id })} aria-label={`Edit ${p.name}`}><Icon name="edit" size={17}/></button><button className={s.iconButton} aria-label={`Remove ${p.name}`} onClick={() => { if (!window.confirm(`Remove ${p.name}? Profiles with medication, presents, or assigned tasks must be cleared or reassigned first.`)) return; void commit(d => { if (d.medications.some(m => m.profileId === p.id) || d.gifts.some(g => g.recipientId === p.id) || d.lists.some(l => l.items.some(t => t.assigneeId === p.id))) throw new Error("Reassign this profile’s medication, presents and tasks before removing it."); d.profiles = d.profiles.filter(v => v.id !== p.id); }); }}><Icon name="trash" size={16}/></button></li>)}</ul>}</section>;
-    return <><p className={s.viewIntro}>Your people. Your pets. Everyone belongs here.<br/>Profiles help organise the board; they don’t need their own login.</p><div className={s.settingsGrid}>{profileGroup("Family members", people, "person")}{profileGroup("Pets", pets, "pet")}</div>{!local && <HouseholdAccess/>}<aside className={s.storageNote}><strong>{local ? "At home in this browser" : "A private household board"}</strong><p>{local ? "Changes are saved on this browser on this device. They aren’t synced to other devices. Clearing site data will remove this local board." : "Changes are saved to your household. Other signed-in household members can use the same board."}</p></aside></>;
+    return <><p className={s.viewIntro}>Your people. Your pets. Everyone belongs here.<br/>Profiles help organise the board; they don’t need their own login.</p><div className={s.settingsGrid}>{profileGroup("Family members", people, "person")}{profileGroup("Pets", pets, "pet")}</div><BoardTransfer local={local} state={state} busy={busy} onImport={incoming => commit(draft => Object.assign(draft, mergeBoards(draft, incoming)), "Local board brought online.", true)}/>{!local && <HouseholdAccess/>}<aside className={s.storageNote}><strong>{local ? "At home in this browser" : "A private household board"}</strong><p>{local ? "Changes are saved on this browser on this device. They aren’t synced to other devices. Clearing site data will remove this local board." : "Changes are saved to your household. Other signed-in household members can use the same board."}</p></aside></>;
   }
   function renderMedications() {
     const medications = activeMeds.filter(m => !recipient || m.profileId === recipient);

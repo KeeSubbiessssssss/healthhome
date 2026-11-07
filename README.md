@@ -16,6 +16,8 @@ Run `npm run dev` for code development; authentication is required by default. B
 
 Demonstration-mode changes are saved in this browser’s local storage. They are not sent to Neon, shared between devices, or automatically copied into a hosted household. Clearing browser site data removes the local board.
 
+To bring an existing testing board online, temporarily run the local demo on its original origin (normally `http://localhost:3000`). In Settings, choose **Open live board to transfer**. The signed-in owner reviews the counts in the new production tab and chooses **Bring local board into this household**. The original browser copy is retained; existing online records are preserved and conflicting edits stop the import. Local note positions and colours are carried across. The transfer uses origin-checked browser messages, not downloaded files or another service.
+
 ## Hosted use
 
 Hosted builds retain Neon Auth and household access checks. Board snapshots are stored in `family_boards`, scoped by household and protected by optimistic version checks. Existing active prescriptions and dose logs are imported into the new board on first save; original medication records remain intact. People and pets on a board are organisational profiles, not login accounts.

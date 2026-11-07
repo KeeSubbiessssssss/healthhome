@@ -1,5 +1,9 @@
 # Family pinboard
 
+## Vibrant studio palette (current)
+
+The user rejected the beige background. The current shell uses a blueberry sidebar, a rich turquoise pinboard, a fresh mint-white desk, acid-lime folder tabs and coral tape/date accents. Keep the saturated family-matched card colours and physical paper interactions. The background is a plain colour surface, not a photograph or decorative wallpaper. White instructions on the turquoise board must retain readable contrast.
+
 User-approved direction: warm paper-style pinboard, movable cards, plain background. Operate mode: everyday tasks come first. HealthHome is a temporary name.
 
 Use an oat paper canvas, saturated yellow/green/pink/blue notes with an ivory neutral, dark brown ink, quiet orange accents, a compact navigation rail, serif headings, and clear sans-serif controls. Cards have subtle paper depth and pins; interactive contents remain upright and readable. No photographic background, glass panels, glucose graphics, or provider connection UI.

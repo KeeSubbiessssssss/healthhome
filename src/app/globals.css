@@ -1,5 +1,5 @@
 @import "tailwindcss";
-:root { color-scheme: light; --ink: #36392e; --muted: #706f61; --canvas: #f0ede5; --paper: #fffdf6; --accent: #a8492d; }
+:root { color-scheme: light; --ink: #25274d; --muted: #496872; --canvas: #f0fffb; --paper: #fffdf6; --accent: #dc4d2e; }
 * { box-sizing: border-box; }
 html { min-height: 100%; }
 body { margin: 0; background: var(--canvas); color: var(--ink); font-family: Arial, Helvetica, sans-serif; font-size: 14px; }
@@ -8,11 +8,11 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 button { cursor: pointer; }
 button:disabled { cursor: default; opacity: .5; }
 a { color: inherit; text-underline-offset: 4px; }
-::selection { background: #dfcf9a; color: #272a22; }
-:focus-visible { outline: 3px solid #a8492d; outline-offset: 4px; }
+::selection { background: #e9ff64; color: #25274d; }
+:focus-visible { outline: 3px solid #dc4d2e; outline-offset: 4px; }
 input, textarea { caret-color: var(--accent); }
 .data-lab-shell { max-width: 650px; margin: 64px auto; padding: 28px; }
 .data-lab-shell h1 { font: 38px Georgia, serif; }
 .data-lab-shell button { padding: 12px 18px; }
 @media(prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
-html { scrollbar-color: #b4a383 #eee8da; scrollbar-width: thin; }
+html { scrollbar-color: #167f83 #e2f6f1; scrollbar-width: thin; }
