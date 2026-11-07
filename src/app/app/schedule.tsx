@@ -16,6 +16,7 @@ export function AgendaTiles({ state, offset = 0, profileId = "", compact = false
   const layout = days.map(day => ({ ...day, groups: activityGroups(day.activities) }));
   return <div className={`${s.agenda} ${compact ? s.compactAgenda : ""}`} style={{ gridTemplateColumns: layout.map(day => `minmax(${day.groups.some(group => group.length > 1) ? 248 : compact ? 116 : 125}px, 1fr)`).join(" ") }}>{layout.map(day => <section className={s.agendaDay} key={day.date}>
     <h3>{weekdayNames[day.weekday].slice(0, 3)}{day.date === today && <small>Today</small>}</h3>
+    {day.weekday < 5 && <DropPickNotes state={state} weekday={day.weekday} profileId={profileId}/>}
     <div className={s.agendaTiles}>{day.groups.map((lanes, index) => <div className={s.activityGroupScroll} key={index} role={lanes.length > 1 ? "group" : undefined} aria-label={lanes.length > 1 ? "Overlapping activities" : undefined} tabIndex={lanes.length > 2 ? 0 : undefined}>
       <div className={s.activityGroup} style={{ gridTemplateColumns: `repeat(${lanes.length}, minmax(116px, 1fr))` }}>{lanes.map((lane, laneIndex) => <div className={s.activityLane} key={laneIndex}>{lane.map(activity => <article key={activity.id} className={`${s.activityTile} ${s[activity.color]}`}>
         <time>{clockLabel(activity.startTime)}{activity.endTime && <span>–{clockLabel(activity.endTime)}</span>}</time>
@@ -54,4 +55,13 @@ export function WeeklySchedule({ state, profileId, busy, commit, onPin, onOption
     <div className={s.weekNavigation}><div><h2>Every week</h2><span>Weekly recurring activities</span></div></div>
     <AgendaTiles state={state} profileId={profileId} onEdit={start} onRemove={id => { const item = state.activities?.find(a => a.id === id); if (item && !busy && window.confirm(`Remove “${item.title}” from every week?`)) void commit(d => { d.activities = d.activities?.filter(a => a.id !== id); }, "Weekly activity removed."); }}/>
   </>;
+}
+
+function DropPickNotes({ state, weekday, profileId }: { state: BoardState; weekday: number; profileId: string }) {
+  const entries = (state.dropPick || []).filter(entry => entry.weekdays.includes(weekday) && (!profileId || entry.profileId === profileId || entry.byProfileId === profileId));
+  return <div className={s.dropPickDay}><h4>Drop/Pick</h4>{entries.map(entry => {
+    const person = state.profiles.find(p => p.id === entry.profileId);
+    const by = state.profiles.find(p => p.id === entry.byProfileId);
+    return <div className={s.dropPickNote} key={entry.id}><div><span className={`${s.profileDot} ${s[person?.color || "cream"]}`}/><strong>{person?.name}</strong><span>{entry.note}</span></div><small>By <span className={`${s.profileDot} ${s[by?.color || "cream"]}`}/><strong>{by?.name}</strong></small></div>;
+  })}{!entries.length && <span className={s.dropPickBlank}>—</span>}</div>;
 }

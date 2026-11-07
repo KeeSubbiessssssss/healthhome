@@ -490,3 +490,17 @@
 .activityTile time span { display: inline-block; }
 .compactAgenda .activityTile strong { font-size: 12px; }
 .compactAgenda .activityTile time, .compactAgenda .activityTile small { font-size: 11px; }
+
+.dropPickDay { margin-bottom: 12px; padding: 7px 8px; background: #e9ff6450; border-top: 2px solid #b5ce32; }
+.dropPickDay h4 { margin: 0 0 5px; font: 18px/1.1 var(--font-handwriting), cursive; color: #2d2b68; }
+.dropPickNote { padding: 5px 0; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.dropPickNote + .dropPickNote { border-top: 1px dashed #64792750; }
+.dropPickNote > div { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+.dropPickNote small { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 2px; font-size: 10px; }
+.dropPickNote .profileDot { width: 8px; height: 8px; flex-shrink: 0; }
+.dropPickBlank { color: #506c62; font-size: 11px; }
+.dropPickHelp { font-size: 13px; line-height: 1.5; }
+.dropPickSettingsList { list-style: none; padding: 0; margin: 0; }
+.dropPickSettingsList li { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px dashed #8fb8b5; }
+.dropPickSettingsList li > div:first-child { display: flex; gap: 6px 10px; flex-wrap: wrap; min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
+.dropPickSettingsList small { flex-basis: 100%; font-size: 11px; }

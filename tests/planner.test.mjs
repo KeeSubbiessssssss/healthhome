@@ -51,3 +51,15 @@ test('schedule resizing stays landscape and within the board, and survives seria
  assert.equal(validScheduleSize(300,260),false); assert.equal(validScheduleSize(600,Infinity),false);
  const wrong=board();wrong.noteLayout={welcome:{...placement,x:0}};assert.throws(()=>parseBoard(wrong));
 });
+test('Drop/Pick entries round trip with weekday and personal profile validation', () => {
+ const state = board();
+ state.profiles.push({ ...state.profiles[0], id: 'driver', name: 'Sam' });
+ const entry = { id: 'drop', profileId: 'person', note: 'School pickup', byProfileId: 'driver', weekdays: [0,2,4] };
+ state.dropPick = [entry];
+ assert.deepEqual(parseBoard(JSON.parse(JSON.stringify(state))).dropPick, [entry]);
+ for (const mutation of [e => e.weekdays = [], e => e.weekdays = [5], e => e.weekdays = [1,1], e => e.profileId = 'unknown', e => e.byProfileId = 'unknown', e => e.note = '', e => e.note = 'x'.repeat(201)]) {
+  const invalid = structuredClone(state); mutation(invalid.dropPick[0]); assert.throws(() => parseBoard(invalid));
+ }
+ const pet = structuredClone(state); pet.profiles[1].kind = 'pet'; assert.throws(() => parseBoard(pet));
+ const duplicate = structuredClone(state); duplicate.dropPick.push(entry); assert.throws(() => parseBoard(duplicate));
+});

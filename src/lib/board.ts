@@ -7,12 +7,13 @@ export type DoseLog = { id: string; occurredAt: string; units: number; note: str
 export type StockChange = { id: string; occurredAt: string; action: "consume" | "replenish" | "correct" | "repeat"; before: number; after: number; note: string };
 export type MedicationRegimen = { profileId: string; unitsPerDose: number; dosesPerDay: number; doseTiming: string; instructions: string };
 export type Medication = { id: string; profileId: string; regimens?: MedicationRegimen[]; name: string; strength: string; instructions: string; doseTiming?: string; stockChanges?: StockChange[]; expiresOn?: string; unit: string; unitsLeft: number; unitsPerDose: number; dosesPerDay: number; refillAt: number; unitsPerRefill: number; repeats: number; logs: DoseLog[]; archived: boolean };
+export type DropPick = { id: string; profileId: string; note: string; byProfileId: string; weekdays: number[] };
 export type WeeklyActivity = { id: string; title: string; profileIds: string[]; weekdays: number[]; startTime: string; endTime: string; color: string };
 export type SummaryKind = "medications" | "gifts" | "tasks-summary" | "schedule";
 export type SummaryPreferences = { pinned: boolean; fields: string[]; profileId: string };
 export type Fastener = { variant: number; offset: number; angle: number; size: number };
 export type NotePlacement = { width?: number; height?: number; fastener?: Fastener; x: number; y: number; angle: number; z: number; attachment: "pin" | "tape" | "loose" };
-export type BoardState = { schemaVersion: 1; activities?: WeeklyActivity[]; summaries?: Partial<Record<SummaryKind, SummaryPreferences>>; profiles: Profile[]; lists: TaskList[]; gifts: Gift[]; medications: Medication[]; order: string[]; cardColors?: Record<string, string>; noteLayout?: Record<string, NotePlacement>; removedNotes?: string[] };
+export type BoardState = { schemaVersion: 1; dropPick?: DropPick[]; activities?: WeeklyActivity[]; summaries?: Partial<Record<SummaryKind, SummaryPreferences>>; profiles: Profile[]; lists: TaskList[]; gifts: Gift[]; medications: Medication[]; order: string[]; cardColors?: Record<string, string>; noteLayout?: Record<string, NotePlacement>; removedNotes?: string[] };
 export const colors = ["butter", "sage", "rose", "blue", "cream", "peach", "mint", "lavender", "lilac", "coral", "lemon", "teal", "sand", "terracotta", "periwinkle"] as const;
 export const emptyBoard = (): BoardState => ({ schemaVersion: 1, profiles: [], lists: [], gifts: [], medications: [], order: ["welcome", "medications", "gifts"] });
 export const newId = () => crypto.randomUUID();
@@ -66,6 +67,13 @@ export function parseBoard(value: unknown): BoardState {
     }
     if (m.stockChanges !== undefined) { check(Array.isArray(m.stockChanges) && m.stockChanges.length <= 2000); for (const change of m.stockChanges) { id(change.id); check(["consume", "replenish", "correct", "repeat"].includes(change.action) && number(change.before) && number(change.after) && text(change.note) && typeof change.occurredAt === "string" && !Number.isNaN(Date.parse(change.occurredAt))); } }
     for (const log of m.logs) { id(log.id); check(number(log.units) && log.units > 0 && typeof log.occurredAt === "string" && !Number.isNaN(Date.parse(log.occurredAt)) && text(log.note) && typeof log.reversed === "boolean" && (log.tracksStock === undefined || typeof log.tracksStock === "boolean") && (log.profileId === undefined || text(log.profileId))); }
+  }
+  if (board.dropPick !== undefined) {
+    check(Array.isArray(board.dropPick) && board.dropPick.length <= 500);
+    const person = (id: string) => board.profiles.some(p => p.id === id && p.kind === "person");
+    for (const entry of board.dropPick) {
+      id(entry.id); check(person(entry.profileId) && person(entry.byProfileId) && text(entry.note, true) && entry.note.length <= 200 && Array.isArray(entry.weekdays) && entry.weekdays.length > 0 && entry.weekdays.length <= 5 && new Set(entry.weekdays).size === entry.weekdays.length && entry.weekdays.every(d => Number.isInteger(d) && d >= 0 && d <= 4));
+    }
   }
   if (board.activities !== undefined) {
     check(Array.isArray(board.activities) && board.activities.length <= 500);
