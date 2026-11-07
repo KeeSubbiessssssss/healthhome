@@ -179,7 +179,7 @@ export const summaryOptions: Record<SummaryKind, { title: string; fields: { id: 
   schedule: { title: "Weekly schedule", fields: [{ id: "totals", label: "This week’s activity count" }, { id: "week", label: "Activities grouped by day" }, { id: "today", label: "Today’s activities" }, { id: "people", label: "Family member names" }] },
 };
 export function summaryPreferences(board: BoardState, kind: SummaryKind): SummaryPreferences {
-  return board.summaries?.[kind] || { pinned: kind === "medications" || kind === "gifts", profileId: "", fields: kind === "schedule" ? ["totals", "week", "people"] : kind === "medications" ? ["totals", "refills", "low"] : ["totals", kind === "gifts" ? "spend" : "due"] };
+  return board.summaries?.[kind] || { pinned: kind === "medications" || kind === "gifts", profileId: "", fields: kind === "schedule" ? ["week", "people"] : kind === "medications" ? ["totals", "refills", "low"] : ["totals", kind === "gifts" ? "spend" : "due"] };
 }
 export function setSummaryPreferences(board: BoardState, kind: SummaryKind, preferences: SummaryPreferences) {
   board.summaries = { ...board.summaries, [kind]: preferences };

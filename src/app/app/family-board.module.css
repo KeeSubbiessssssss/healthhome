@@ -472,3 +472,12 @@
 .summaryUrgent { display: inline-block; align-self: start; background: #9e243c; color: #fffdf5; padding: 4px 6px; border-radius: 2px; }
 .sectionSummaryControl { display: flex; justify-content: end; margin: 8px 0; }
 @media(max-width: 760px) { .scheduleActions { width: 100%; }.scheduleMain .pageHeading h1 { font-size: 32px; }.summaryOptionsGrid { grid-template-columns: 1fr; }.agenda { grid-template-columns: repeat(7, 140px); }.compactAgenda { grid-template-columns: repeat(7, 96px); }.canvasDockActions .date { flex-shrink: 0; }.canvasDockActions > button { margin-left: 0; } }
+
+.paper.freeNote, .paper.freeNote:nth-child(n) { padding: 12px 18px 20px; }
+.paper.freeNote > .freeTools { position: relative; inset: auto; margin-bottom: 10px; justify-content: start; align-items: center; }
+.freeTools > .pinboardNoteHeading { flex: 1; min-width: 0; margin: 0; font: 23px/1.1 var(--font-handwriting), cursive; overflow-wrap: anywhere; }
+.freeTools > .noteGrip { flex-shrink: 0; }
+.freeNote .noteTitle, .freeNote .welcomeTitle { display: none; }
+.paper.freeNote.schedulePaper { display: flex; flex-direction: column; padding-top: 10px; }
+.schedulePaper > .freeTools { flex-shrink: 0; }
+.schedulePaper .scheduleNoteBody { flex: 1; height: auto; }

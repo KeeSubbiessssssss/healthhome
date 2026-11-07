@@ -1,6 +1,6 @@
 "use client";
 
-import { dailyDoseLabel, giftIsBought, householdDateKey, medicationRegimens, medicationSupplyStatus, occasionsForGift, setSummaryPreferences, summaryMedicationList, summaryOptions, summaryPreferences, weeklyAgenda, type BoardState, type SummaryKind } from "@/lib/board";
+import { dailyDoseLabel, giftIsBought, householdDateKey, medicationRegimens, medicationSupplyStatus, occasionsForGift, setSummaryPreferences, summaryMedicationList, summaryOptions, summaryPreferences, type BoardState, type SummaryKind } from "@/lib/board";
 import { AgendaTiles, type BoardCommit } from "./schedule";
 import s from "./family-board.module.css";
 
@@ -13,7 +13,7 @@ export function SummaryOptionsEditor({ state, commit, busy, onClose }: { state: 
       if (pinned && !fields.length) throw new Error(`Choose at least one detail for the ${summaryOptions[kind].title} summary.`);
       setSummaryPreferences(draft, kind, { pinned, fields: fields.length ? fields : summaryPreferences(draft, kind).fields, profileId: String(data.get(`${kind}-profile`) || "") });
     }
-  }, "Pinboard summaries saved.").then(ok => { if (ok) onClose(); }); }}><fieldset disabled={busy} className={s.summaryOptionsGrid}>{kinds.map(kind => { const prefs = summaryPreferences(state, kind); return <fieldset className={s.summaryOptionGroup} key={kind}><legend>{summaryOptions[kind].title}</legend><label className={s.summaryToggle}><input type="checkbox" name={`${kind}-pinned`} defaultChecked={prefs.pinned}/>Show on the pinboard</label><label className={s.field}>For<select name={`${kind}-profile`} defaultValue={prefs.profileId}><option value="">Everyone</option>{state.profiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>{summaryOptions[kind].fields.map(field => <label key={field.id}><input type="checkbox" name={`${kind}-field`} value={field.id} defaultChecked={prefs.fields.includes(field.id)}/>{field.label}</label>)}</fieldset>; })}<div className={s.formActions}><button className={s.primary} type="submit">{busy ? "Saving…" : "Save summaries"}</button><button type="button" className={s.textButton} onClick={onClose}>Cancel</button></div></fieldset></form></>;
+  }, "Pinboard summaries saved.").then(ok => { if (ok) onClose(); }); }}><fieldset disabled={busy} className={s.summaryOptionsGrid}>{kinds.map(kind => { const prefs = summaryPreferences(state, kind); return <fieldset className={s.summaryOptionGroup} key={kind}><legend>{summaryOptions[kind].title}</legend><label className={s.summaryToggle}><input type="checkbox" name={`${kind}-pinned`} defaultChecked={prefs.pinned}/>Show on the pinboard</label><label className={s.field}>For<select name={`${kind}-profile`} defaultValue={prefs.profileId}><option value="">Everyone</option>{state.profiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>{summaryOptions[kind].fields.filter(field => kind !== "schedule" || field.id !== "totals").map(field => <label key={field.id}><input type="checkbox" name={`${kind}-field`} value={field.id} defaultChecked={prefs.fields.includes(field.id)}/>{field.label}</label>)}</fieldset>; })}<div className={s.formActions}><button className={s.primary} type="submit">{busy ? "Saving…" : "Save summaries"}</button><button type="button" className={s.textButton} onClick={onClose}>Cancel</button></div></fieldset></form></>;
 }
 
 export function SummaryNoteContent({ state, kind, onOpen }: { state: BoardState; kind: SummaryKind; onOpen: () => void }) {
@@ -47,9 +47,7 @@ export function SummaryNoteContent({ state, kind, onOpen }: { state: BoardState;
       {show("upcoming") && <div className={s.summarySection}><h3>Coming up</h3>{upcoming.length ? rows(upcoming) : <p>No upcoming due dates.</p>}</div>}
     </>;
   } else {
-    const agenda = weeklyAgenda(state.activities || [], new Date(), 0, prefs.profileId);
     contents = <>
-      {show("totals") && <p className={s.summaryTotal}>{agenda.reduce((sum, day) => sum + day.activities.length, 0)} activities this week</p>}
       {show("today") && <div className={s.summarySection}><h3>Today</h3><AgendaTiles state={state} profileId={prefs.profileId} compact todayOnly showPeople={show("people")}/></div>}
       {(show("week") || (!show("today") && show("people"))) && <AgendaTiles state={state} profileId={prefs.profileId} compact showPeople={show("people")}/>}
     </>;

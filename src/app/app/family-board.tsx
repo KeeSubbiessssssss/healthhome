@@ -195,9 +195,11 @@ export function FamilyBoard() {
   }
   function paper(id: string, color: string, content: ReactNode) {
     const paperColor = state.cardColors?.[id] || color;
+    const list = state.lists.find(list => list.id === id);
+    const heading = list?.title || ({ welcome: "Life’s little things, in one place.", medications: "Medication", gifts: "Presents", schedule: "Our week, on paper.", "tasks-summary": "Lists & tasks" } as Record<string, string>)[id];
     if (view === "board") {
       const front = Math.min(10000, Math.max(state.order.length, ...Object.values(state.noteLayout || {}).map(p => p.z)) + 1);
-      return <FreeNote key={id} id={id} color={paperColor} placement={notePlacement(id)} front={front} disabled={busy} resizable={id === "schedule"} palette={cardTools(id, paperColor)} onChange={p => changePlacement(id, p)}>{content}</FreeNote>;
+      return <FreeNote key={id} id={id} heading={heading} color={paperColor} placement={notePlacement(id)} front={front} disabled={busy} resizable={id === "schedule"} palette={<>{list && <button className={s.iconButton} aria-label={`Edit ${list.title}`} onClick={() => open({ type: "list", id: list.id })}><Icon name="edit" size={16}/></button>}{cardTools(id, paperColor)}</>} onChange={p => changePlacement(id, p)}>{content}</FreeNote>;
     }
     return <article key={id} className={`${s.paper} ${s[paperColor]}`}><div className={s.cardTools}>{cardTools(id, paperColor)}</div>{content}</article>;
   }
