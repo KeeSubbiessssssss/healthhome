@@ -1,17 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { totalDailyDose, type Medication } from "@/lib/board";
+import { dailyDoseLabel, type Medication } from "@/lib/board";
 import s from "./family-board.module.css";
 
 export function MedicationScheduleFields({ medication }: { medication?: Medication }) {
+  const [strength, setStrength] = useState(medication?.strength || "");
+  const [supplyUnit, setSupplyUnit] = useState(medication?.unit || "tablets");
   const [units, setUnits] = useState(String(medication?.unitsPerDose ?? 1));
   const [frequency, setFrequency] = useState(String(medication?.dosesPerDay ?? 1));
-  const total = totalDailyDose({ unitsPerDose: Number(units), dosesPerDay: Number(frequency) });
+  const total = dailyDoseLabel({ strength, unit: supplyUnit, unitsPerDose: Number(units), dosesPerDay: Number(frequency) });
   return <>
+    <label className={s.field}>Strength per unit<input name="strength" value={strength} onChange={event => setStrength(event.target.value)} placeholder="e.g. 75 mg or 10 mg / 5 mL" maxLength={500}/><small>Include the strength unit from the label.</small></label>
+    <label className={s.field}>Supply unit<input name="unit" value={supplyUnit} onChange={event => setSupplyUnit(event.target.value)} placeholder="tablets, capsules, mL…" maxLength={500} required/></label>
     <label className={s.field}>Units per dose<input type="number" name="unitsPerDose" value={units} onChange={event => setUnits(event.target.value)} min="0.0001" step="0.0001" required/></label>
     <label className={s.field}>Doses per day (0 for as needed)<input type="number" name="dosesPerDay" value={frequency} onChange={event => setFrequency(event.target.value)} min="0" step="1" required/></label>
-    <label className={s.field}>Total Daily Dose<input value={Number(frequency) === 0 ? "As needed" : String(total)} readOnly/><small>In the unit entered above: units per dose × doses per day.</small></label>
+    <label className={s.field}>Total Daily Dose<input value={total} readOnly/><small>Strength × units per dose × doses per day. Concentrations use the stated volume.</small></label>
     <label className={s.field}>Dose timing<input name="doseTiming" defaultValue={medication?.doseTiming || ""} placeholder="e.g. morning and evening, with food" maxLength={500}/></label>
   </>;
 }

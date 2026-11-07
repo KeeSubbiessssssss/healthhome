@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { emptyBoard, adjustInventory, totalDailyDose, defaultPlacement, constrainPlacement, replaceFastener, fastenerAppearance, fillRepeat, logDose, moveCard, parseBoard, productLink, linksForGift, occasionsForGift, giftIsBought, undoDose } from '../src/lib/board.ts';
+import { emptyBoard, adjustInventory, totalDailyDose, dailyDoseLabel, defaultPlacement, constrainPlacement, replaceFastener, fastenerAppearance, fillRepeat, logDose, moveCard, parseBoard, productLink, linksForGift, occasionsForGift, giftIsBought, undoDose } from '../src/lib/board.ts';
 const medication = () => ({ id: 'med', profileId: 'pet', name: 'Test medication', strength: '', instructions: '', unit: 'mL', unitsLeft: 2, unitsPerDose: .3, dosesPerDay: 1, refillAt: .5, unitsPerRefill: 10, repeats: 2, logs: [], archived: false });
 const board = () => ({ ...emptyBoard(), profiles: [{ id: 'pet', name: 'Test pet', kind: 'pet', birthday: '', species: 'Dog', color: 'sage' }], medications: [medication()] });
 test('people and pets can own medications without login identities', () => {
@@ -137,9 +137,22 @@ test('multiple present links persist and existing single links remain available'
  assert.throws(() => parseBoard({ ...state, gifts: [{ ...gift, productLinks: [{ label: 'Missing URL', url: '' }] }] }));
 });
 
-test('daily dose is calculated with fractional units and supports as-needed schedules', () => {
- assert.equal(totalDailyDose({ unitsPerDose: .3, dosesPerDay: 3 }), .9);
- assert.equal(totalDailyDose({ unitsPerDose: 2, dosesPerDay: 0 }), 0);
+test('daily dose uses strength, units per dose and daily frequency', () => {
+ const med = { ...medication(), strength: '75mg', unit: 'tablets', unitsPerDose: 3, dosesPerDay: 1 };
+ assert.deepEqual(totalDailyDose(med), { amount: 225, unit: 'mg' });
+ assert.equal(dailyDoseLabel(med), '225 mg daily');
+ assert.equal(dailyDoseLabel({ ...med, dosesPerDay: 2 }), '450 mg daily');
+ assert.equal(dailyDoseLabel({ ...med, strength: '75' }), '225 daily');
+ assert.equal(dailyDoseLabel({ ...med, dosesPerDay: 0 }), 'As needed');
+ assert.deepEqual(totalDailyDose({ ...med, strength: '0.1 mg', unitsPerDose: 3 }), { amount: .3, unit: 'mg' });
+});
+test('daily strength handles explicit concentrations without guessing complex labels', () => {
+ const med = { ...medication(), strength: '10 mg / 5 mL', unitsPerDose: 2.5, dosesPerDay: 2 };
+ assert.deepEqual(totalDailyDose(med), { amount: 10, unit: 'mg' });
+ assert.deepEqual(totalDailyDose({ ...med, strength: '10mg/mL' }), { amount: 50, unit: 'mg' });
+ for (const strength of ['', '75mg + 10mg', '5%', '10–20 mg', '0 mg', '10 mg / 0 mL']) assert.equal(totalDailyDose({ ...med, strength }), null);
+ assert.equal(totalDailyDose({ ...med, unit: 'tablets' }), null);
+ assert.equal(dailyDoseLabel({ ...med, strength: '' }), 'Daily dose not set');
 });
 test('inventory consumption, replenishment and corrections preserve medication directions', () => {
  const original = { ...medication(), doseTiming: 'Morning with food' };

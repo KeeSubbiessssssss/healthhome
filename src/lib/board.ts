@@ -75,7 +75,23 @@ export function undoDose(medication: Medication, logId: string): Medication {
   if (!log || log.reversed) throw new Error("That dose has already been restored.");
   return { ...medication, unitsLeft: log.tracksStock === false ? medication.unitsLeft : Math.round((medication.unitsLeft + log.units) * 10000) / 10000, logs: medication.logs.map(l => l.id === logId ? { ...l, reversed: true } : l) };
 }
-export const totalDailyDose = (medication: Pick<Medication, "unitsPerDose" | "dosesPerDay">) => Math.round(medication.unitsPerDose * medication.dosesPerDay * 10000) / 10000;
+// Strength is per supply unit, or an explicit concentration such as 10 mg / 5 mL.
+// Ambiguous labels (ranges, multiple ingredients, percentages) stay uncalculated.
+export function totalDailyDose(medication: Pick<Medication, "strength" | "unit" | "unitsPerDose" | "dosesPerDay">): { amount: number; unit: string } | null {
+  const match = medication.strength.trim().match(/^(\d+(?:\.\d+)?)\s*(mcg|μg|µg|ug|mg|g|mL|ml|IU|units?|mmol|mEq)?(?:\s*\/\s*(\d+(?:\.\d+)?)?\s*(mL|ml|tablets?|capsules?|units?))?$/i);
+  if (!match || !Number.isFinite(medication.unitsPerDose) || medication.unitsPerDose <= 0 || !Number.isFinite(medication.dosesPerDay) || medication.dosesPerDay <= 0) return null;
+  const unit = (value: string) => value.toLowerCase().replace(/s$/, "");
+  if (match[4] && unit(match[4]) !== unit(medication.unit.trim())) return null;
+  const strength = Number(match[1]); const perUnits = match[4] ? Number(match[3] || 1) : 1;
+  const amount = strength / perUnits * medication.unitsPerDose * medication.dosesPerDay;
+  if (strength <= 0 || perUnits <= 0 || !Number.isFinite(amount) || amount > 1e9) return null;
+  return { amount: Math.round(amount * 1e6) / 1e6, unit: match[2] || "" };
+}
+export function dailyDoseLabel(medication: Pick<Medication, "strength" | "unit" | "unitsPerDose" | "dosesPerDay">): string {
+  if (medication.dosesPerDay === 0) return "As needed";
+  const dose = totalDailyDose(medication);
+  return dose ? `${dose.amount}${dose.unit ? ` ${dose.unit}` : ""} daily` : "Daily dose not set";
+}
 export function adjustInventory(medication: Medication, action: StockChange["action"], amount: number, note = ""): Medication {
   if (!["consume", "replenish", "correct", "repeat"].includes(action)) throw new Error("Choose an inventory action.");
   if (!Number.isFinite(amount) || amount < 0 || amount > 1e9 || (action !== "correct" && amount === 0)) throw new Error("Enter a valid inventory quantity.");
