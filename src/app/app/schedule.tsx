@@ -4,6 +4,7 @@ import { useRef, useState, useLayoutEffect, type ReactNode, type FormEvent } fro
 import { householdDateKey, newId, weekDates, weekdayNames, weeklyAgenda, type BoardState, type WeeklyActivity } from "@/lib/board";
 import { activityGroups, timedActivityLayout } from "@/lib/schedule-layout";
 import s from "./family-board.module.css";
+import { DropPickSettings } from "./drop-pick-settings";
 
 export type BoardCommit = (change: (draft: BoardState) => void, message?: string) => Promise<boolean>;
 export const clockLabel = (time: string) => { const [hour, minute] = time.split(":").map(Number); return `${hour % 12 || 12}:${String(minute).padStart(2, "0")}${hour >= 12 ? "pm" : "am"}`; };
@@ -66,6 +67,7 @@ export function WeeklySchedule({ state, profileId, busy, commit, onPin, onOption
   }
   return <>
     <div className={s.viewToolbar}><p>The regular things, with room around them.</p><div className={s.scheduleActions}><button className={s.secondary} disabled={busy} onClick={pinned ? onOptions : onPin}>{pinned ? "Summary options" : "Pin schedule summary"}</button><button className={s.primary} disabled={busy} onClick={() => start("new")}>Add weekly activity</button></div></div>
+    <details className={s.dropPickControl}><summary>Manage Drop/Pick</summary><DropPickSettings state={state} busy={busy} commit={commit}/></details>
     {editing !== null && <form ref={formRef} key={editing} className={s.editor} onSubmit={save}><header><h2>{activity ? "Edit weekly activity" : "A regular little plan"}</h2><button type="button" className={s.textButton} onClick={() => setEditing(null)}>Close</button></header><fieldset className={s.formFields} disabled={busy}>
       <label className={s.field}>Activity<input name="title" defaultValue={activity?.title} maxLength={500} required placeholder="Swimming, school run, family dinner…"/></label>
       <label className={s.field}>Starts<input name="startTime" type="time" defaultValue={activity?.startTime || "09:00"} required/></label>

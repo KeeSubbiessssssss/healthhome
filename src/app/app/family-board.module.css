@@ -713,3 +713,7 @@
   .giftCard .giftHeadingLine .requestedStatus { font-size: 12px; padding: 3px 6px; }
   .giftCard .iconButton { min-width: 44px; min-height: 44px; }
 }
+
+.dropPickControl { margin: 16px 0; background: #fffef6; border-radius: 3px; }
+.dropPickControl > summary { min-height: 48px; padding: 12px 16px; cursor: pointer; color: #2d2b68; font: 24px/1.2 var(--font-handwriting), cursive; }
+.dropPickControl > .settingsGroup { margin-bottom: 0; }
