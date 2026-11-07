@@ -57,6 +57,13 @@
       "when": 1788091558089,
       "tag": "0007_pale_the_spike",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794002289029,
+      "tag": "0008_smooth_the_executioner",
+      "breakpoints": true
     }
   ]
 }

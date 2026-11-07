@@ -3,6 +3,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -388,3 +389,12 @@ export const glucoseReadings = pgTable(
     ),
   ],
 );
+
+// Household pinboard snapshots are versioned to reject concurrent overwrites.
+// Retired provider tables above remain solely to preserve historical data.
+export const familyBoards = pgTable("family_boards", {
+  householdId: uuid("household_id").primaryKey().references(() => households.id, { onDelete: "cascade" }),
+  state: jsonb("state").notNull(),
+  version: integer("version").notNull().default(1),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
