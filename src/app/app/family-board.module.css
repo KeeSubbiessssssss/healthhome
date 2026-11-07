@@ -481,3 +481,5 @@
 .paper.freeNote.schedulePaper { display: flex; flex-direction: column; padding-top: 10px; }
 .schedulePaper > .freeTools { flex-shrink: 0; }
 .schedulePaper .scheduleNoteBody { flex: 1; height: auto; }
+
+.activityActions { display: flex; gap: 14px; align-items: center; }

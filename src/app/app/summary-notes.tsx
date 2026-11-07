@@ -16,7 +16,7 @@ export function SummaryOptionsEditor({ state, commit, busy, onClose }: { state: 
   }, "Pinboard summaries saved.").then(ok => { if (ok) onClose(); }); }}><fieldset disabled={busy} className={s.summaryOptionsGrid}>{kinds.map(kind => { const prefs = summaryPreferences(state, kind); return <fieldset className={s.summaryOptionGroup} key={kind}><legend>{summaryOptions[kind].title}</legend><label className={s.summaryToggle}><input type="checkbox" name={`${kind}-pinned`} defaultChecked={prefs.pinned}/>Show on the pinboard</label><label className={s.field}>For<select name={`${kind}-profile`} defaultValue={prefs.profileId}><option value="">Everyone</option>{state.profiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>{summaryOptions[kind].fields.filter(field => kind !== "schedule" || field.id !== "totals").map(field => <label key={field.id}><input type="checkbox" name={`${kind}-field`} value={field.id} defaultChecked={prefs.fields.includes(field.id)}/>{field.label}</label>)}</fieldset>; })}<div className={s.formActions}><button className={s.primary} type="submit">{busy ? "Saving…" : "Save summaries"}</button><button type="button" className={s.textButton} onClick={onClose}>Cancel</button></div></fieldset></form></>;
 }
 
-export function SummaryNoteContent({ state, kind, onOpen }: { state: BoardState; kind: SummaryKind; onOpen: () => void }) {
+export function SummaryNoteContent({ state, kind, onOpen, onEditActivity }: { state: BoardState; kind: SummaryKind; onOpen: () => void; onEditActivity?: (id: string) => void }) {
   const prefs = summaryPreferences(state, kind); const show = (id: string) => prefs.fields.includes(id);
   const person = (id: string) => state.profiles.find(p => p.id === id)?.name || "Unassigned";
   let contents;
@@ -48,8 +48,8 @@ export function SummaryNoteContent({ state, kind, onOpen }: { state: BoardState;
     </>;
   } else {
     contents = <>
-      {show("today") && <div className={s.summarySection}><h3>Today</h3><AgendaTiles state={state} profileId={prefs.profileId} compact todayOnly showPeople={show("people")}/></div>}
-      {(show("week") || (!show("today") && show("people"))) && <AgendaTiles state={state} profileId={prefs.profileId} compact showPeople={show("people")}/>}
+      {show("today") && <div className={s.summarySection}><h3>Today</h3><AgendaTiles state={state} profileId={prefs.profileId} compact todayOnly onEdit={onEditActivity} showPeople={show("people")}/></div>}
+      {(show("week") || (!show("today") && show("people"))) && <AgendaTiles state={state} profileId={prefs.profileId} compact onEdit={onEditActivity} showPeople={show("people")}/>}
     </>;
   }
   return <><div className={s.noteTitle}><h2>{kind === "schedule" ? "Our week, on paper." : summaryOptions[kind].title}</h2></div>{prefs.profileId && <p className={s.noteMeta}>{person(prefs.profileId)}</p>}<div className={s.summaryContents}>{contents}</div><button className={s.noteLink} onClick={onOpen}>Open {summaryOptions[kind].title.toLowerCase()}<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button></>;
