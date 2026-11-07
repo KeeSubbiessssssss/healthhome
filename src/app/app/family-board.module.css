@@ -483,3 +483,10 @@
 .schedulePaper .scheduleNoteBody { flex: 1; height: auto; }
 
 .activityActions { display: flex; gap: 14px; align-items: center; }
+
+.activityGroupScroll { min-width: 0; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: #3d3588 transparent; }
+.activityGroup { display: grid; gap: 8px; align-items: start; }
+.activityLane { display: grid; gap: 8px; min-width: 0; }
+.activityTile time span { display: inline-block; }
+.compactAgenda .activityTile strong { font-size: 12px; }
+.compactAgenda .activityTile time, .compactAgenda .activityTile small { font-size: 11px; }

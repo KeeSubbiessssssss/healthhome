@@ -2,6 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { householdDateKey, newId, weekDates, weekdayNames, weeklyAgenda, type BoardState, type WeeklyActivity } from "@/lib/board";
+import { activityGroups } from "@/lib/schedule-layout";
 import s from "./family-board.module.css";
 
 export type BoardCommit = (change: (draft: BoardState) => void, message?: string) => Promise<boolean>;
@@ -12,7 +13,17 @@ export function AgendaTiles({ state, offset = 0, profileId = "", compact = false
   const occupied = weeklyAgenda(state.activities || [], new Date(), offset, profileId);
   const days = weekDates(new Date(), offset).map((date, weekday) => ({ date, weekday, activities: occupied.find(day => day.date === date)?.activities || [] })).filter(day => !todayOnly || day.date === today);
   if (todayOnly && !days.some(day => day.activities.length)) return <p className={s.agendaEmpty}>Nothing scheduled today.</p>;
-  return <div className={`${s.agenda} ${compact ? s.compactAgenda : ""}`}>{days.map(day => <section className={s.agendaDay} key={day.date}><h3>{weekdayNames[day.weekday].slice(0, 3)}{day.date === today && <small>Today</small>}</h3><div className={s.agendaTiles}>{day.activities.map(activity => <article key={activity.id} className={`${s.activityTile} ${s[activity.color]}`}><time>{clockLabel(activity.startTime)}{activity.endTime && <>–{clockLabel(activity.endTime)}</>}</time><div><strong>{activity.title}</strong>{showPeople && <small>{activity.profileIds.length ? activity.profileIds.map(id => state.profiles.find(p => p.id === id)?.name || "Unknown").join(" & ") : "Everyone"}</small>}</div>{(onEdit || onRemove) && <div className={s.activityActions}>{onEdit && <button className={s.textButton} onClick={() => onEdit(activity.id)} aria-label={`Edit ${activity.title}`}>Edit</button>}{onRemove && <button className={s.textButton} onClick={() => onRemove(activity.id)} aria-label={`Remove ${activity.title}`}>Remove</button>}</div>}</article>)}</div></section>)}</div>;
+  const layout = days.map(day => ({ ...day, groups: activityGroups(day.activities) }));
+  return <div className={`${s.agenda} ${compact ? s.compactAgenda : ""}`} style={{ gridTemplateColumns: layout.map(day => `minmax(${day.groups.some(group => group.length > 1) ? 248 : compact ? 116 : 125}px, 1fr)`).join(" ") }}>{layout.map(day => <section className={s.agendaDay} key={day.date}>
+    <h3>{weekdayNames[day.weekday].slice(0, 3)}{day.date === today && <small>Today</small>}</h3>
+    <div className={s.agendaTiles}>{day.groups.map((lanes, index) => <div className={s.activityGroupScroll} key={index} role={lanes.length > 1 ? "group" : undefined} aria-label={lanes.length > 1 ? "Overlapping activities" : undefined} tabIndex={lanes.length > 2 ? 0 : undefined}>
+      <div className={s.activityGroup} style={{ gridTemplateColumns: `repeat(${lanes.length}, minmax(116px, 1fr))` }}>{lanes.map((lane, laneIndex) => <div className={s.activityLane} key={laneIndex}>{lane.map(activity => <article key={activity.id} className={`${s.activityTile} ${s[activity.color]}`}>
+        <time>{clockLabel(activity.startTime)}{activity.endTime && <span>–{clockLabel(activity.endTime)}</span>}</time>
+        <div><strong>{activity.title}</strong>{showPeople && <small>{activity.profileIds.length ? activity.profileIds.map(id => state.profiles.find(p => p.id === id)?.name || "Unknown").join(" & ") : "Everyone"}</small>}</div>
+        {(onEdit || onRemove) && <div className={s.activityActions}>{onEdit && <button className={s.textButton} onClick={() => onEdit(activity.id)} aria-label={`Edit ${activity.title}`}>Edit</button>}{onRemove && <button className={s.textButton} onClick={() => onRemove(activity.id)} aria-label={`Remove ${activity.title}`}>Remove</button>}</div>}
+      </article>)}</div>)}</div>
+    </div>)}</div>
+  </section>)}</div>;
 }
 
 export function WeeklySchedule({ state, profileId, busy, commit, onPin, onOptions, pinned, initialEditing = null }: { state: BoardState; profileId: string; busy: boolean; commit: BoardCommit; onPin: () => void; onOptions: () => void; pinned: boolean; initialEditing?: string | null }) {
