@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useLayoutEffect, type ReactNode, type FormEvent } from "react";
-import { householdDateKey, newId, weekDates, weekdayNames, weeklyAgenda, type BoardState, type WeeklyActivity } from "@/lib/board";
+import { householdDateKey, newId, dropPickProfileIds, dropPickByLabel, weekDates, weekdayNames, weeklyAgenda, type BoardState, type WeeklyActivity } from "@/lib/board";
 import { activityGroups, timedActivityLayout } from "@/lib/schedule-layout";
 import s from "./family-board.module.css";
 import { DropPickSettings } from "./drop-pick-settings";
@@ -82,10 +82,10 @@ export function WeeklySchedule({ state, profileId, busy, commit, onPin, onOption
 }
 
 function DropPickNotes({ state, weekday, profileId }: { state: BoardState; weekday: number; profileId: string }) {
-  const entries = (state.dropPick || []).filter(entry => entry.weekdays.includes(weekday) && (!profileId || entry.profileId === profileId || entry.byProfileId === profileId));
+  const entries = (state.dropPick || []).filter(entry => entry.weekdays.includes(weekday) && (!profileId || dropPickProfileIds(entry).includes(profileId) || entry.byProfileId === profileId));
   return <div className={s.dropPickDay}><h4>Drop/Pick</h4>{entries.map(entry => {
-    const person = state.profiles.find(p => p.id === entry.profileId);
+    const people = dropPickProfileIds(entry).map(id => state.profiles.find(p => p.id === id));
     const by = state.profiles.find(p => p.id === entry.byProfileId);
-    return <div className={s.dropPickNote} key={entry.id}><div><span className={`${s.profileDot} ${s[person?.color || "cream"]}`}/><strong>{person?.name}</strong><span>{entry.note}</span></div><small>By <span className={`${s.profileDot} ${s[by?.color || "cream"]}`}/><strong>{by?.name}</strong></small></div>;
+    return <div className={s.dropPickNote} key={entry.id}><div>{people.map(person => <span className={s.dropPickPerson} key={person?.id}><span className={`${s.profileDot} ${s[person?.color || "cream"]}`}/><strong>{person?.name}</strong></span>)}<span>{entry.note}</span></div><small>By {by && <span className={`${s.profileDot} ${s[by.color]}`}/>}<strong>{dropPickByLabel(entry, state.profiles)}</strong></small></div>;
   })}{!entries.length && <span className={s.dropPickBlank}>—</span>}</div>;
 }

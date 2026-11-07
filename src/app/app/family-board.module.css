@@ -717,3 +717,5 @@
 .dropPickControl { margin: 16px 0; background: #fffef6; border-radius: 3px; }
 .dropPickControl > summary { min-height: 48px; padding: 12px 16px; cursor: pointer; color: #2d2b68; font: 24px/1.2 var(--font-handwriting), cursive; }
 .dropPickControl > .settingsGroup { margin-bottom: 0; }
+
+.dropPickPerson { display: inline-flex; align-items: center; gap: 4px; }

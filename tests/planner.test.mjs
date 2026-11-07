@@ -63,3 +63,20 @@ test('Drop/Pick entries round trip with weekday and personal profile validation'
  const pet = structuredClone(state); pet.profiles[1].kind = 'pet'; assert.throws(() => parseBoard(pet));
  const duplicate = structuredClone(state); duplicate.dropPick.push(entry); assert.throws(() => parseBoard(duplicate));
 });
+test('shared Drop/Pick supports travelling together, bus and unassigned transport while preserving old entries', async () => {
+ const { dropPickProfileIds, dropPickByLabel } = await import('../src/lib/board.ts');
+ const state = board(); state.profiles.push({ ...state.profiles[0], id:'second', name:'Sam' });
+ const shared = { id:'shared-drop', profileId:'person', profileIds:['person','second'], note:'School pickup', byProfileId:'', transport:'bus', weekdays:[0,1] };
+ state.dropPick = [shared];
+ assert.deepEqual(parseBoard(structuredClone(state)).dropPick, [shared]);
+ assert.deepEqual(dropPickProfileIds(shared), ['person','second']);
+ assert.equal(dropPickByLabel(shared,state.profiles),'Bus');
+ const unassigned = { ...shared }; delete unassigned.transport;
+ state.dropPick = [unassigned]; assert.doesNotThrow(()=>parseBoard(state)); assert.equal(dropPickByLabel(unassigned,state.profiles),'Not assigned');
+ const old = {id:'old-drop',profileId:'person',note:'Pickup',byProfileId:'second',weekdays:[2]};
+ state.dropPick = [old]; assert.doesNotThrow(()=>parseBoard(state)); assert.deepEqual(dropPickProfileIds(old),['person']); assert.equal(dropPickByLabel(old,state.profiles),'Sam');
+ for (const change of [e=>e.profileIds=[],e=>e.profileIds=['second'],e=>e.profileIds=['person','person'],e=>e.profileIds=['person','missing'],e=>e.byProfileId='second',e=>e.transport='unknown']) {
+  const invalid = {...board(),profiles:state.profiles,dropPick:[structuredClone(shared)]}; change(invalid.dropPick[0]); assert.throws(()=>parseBoard(invalid));
+ }
+ const pet = {...board(),profiles:state.profiles.map(p=>p.id==='second'?{...p,kind:'pet'}:p),dropPick:[shared]}; assert.throws(()=>parseBoard(pet));
+});

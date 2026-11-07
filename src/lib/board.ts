@@ -7,7 +7,7 @@ export type DoseLog = { id: string; occurredAt: string; units: number; note: str
 export type StockChange = { id: string; occurredAt: string; action: "consume" | "replenish" | "correct" | "repeat"; before: number; after: number; note: string };
 export type MedicationRegimen = { profileId: string; unitsPerDose: number; dosesPerDay: number; doseTiming: string; instructions: string };
 export type Medication = { id: string; profileId: string; regimens?: MedicationRegimen[]; name: string; strength: string; instructions: string; doseTiming?: string; stockChanges?: StockChange[]; expiresOn?: string; unit: string; unitsLeft: number; unitsPerDose: number; dosesPerDay: number; refillAt: number; unitsPerRefill: number; repeats: number; logs: DoseLog[]; archived: boolean };
-export type DropPick = { id: string; profileId: string; note: string; byProfileId: string; weekdays: number[] };
+export type DropPick = { id: string; profileId: string; profileIds?: string[]; note: string; byProfileId: string; transport?: "bus"; weekdays: number[] };
 export type WeeklyActivity = { id: string; title: string; profileIds: string[]; weekdays: number[]; startTime: string; endTime: string; color: string };
 export type SummaryKind = "medications" | "gifts" | "tasks-summary" | "schedule";
 export type SummaryPreferences = { pinned: boolean; fields: string[]; profileId: string };
@@ -16,6 +16,8 @@ export type NotePlacement = { width?: number; height?: number; fastener?: Fasten
 export type BoardState = { schemaVersion: 1; dropPick?: DropPick[]; activities?: WeeklyActivity[]; summaries?: Partial<Record<SummaryKind, SummaryPreferences>>; profiles: Profile[]; lists: TaskList[]; gifts: Gift[]; medications: Medication[]; order: string[]; cardColors?: Record<string, string>; noteLayout?: Record<string, NotePlacement>; removedNotes?: string[] };
 export const colors = ["butter", "sage", "rose", "blue", "cream", "peach", "mint", "lavender", "lilac", "coral", "lemon", "teal", "sand", "terracotta", "periwinkle"] as const;
 export const emptyBoard = (): BoardState => ({ schemaVersion: 1, profiles: [], lists: [], gifts: [], medications: [], order: ["welcome", "medications", "gifts"] });
+export const dropPickProfileIds = (entry: DropPick): string[] => entry.profileIds ?? [entry.profileId];
+export const dropPickByLabel = (entry: DropPick, profiles: Profile[]): string => entry.transport === "bus" ? "Bus" : entry.byProfileId ? profiles.find(p => p.id === entry.byProfileId)?.name || "Unknown" : "Not assigned";
 export const newId = () => crypto.randomUUID();
 export const occasionsForGift = (gift: Gift) => gift.occasions ?? [gift.occasion];
 export const linksForGift = (gift: Gift): GiftProductLink[] => gift.productLinks ?? (gift.productUrl ? [{ label: "View product", url: gift.productUrl }] : []);
@@ -72,7 +74,8 @@ export function parseBoard(value: unknown): BoardState {
     check(Array.isArray(board.dropPick) && board.dropPick.length <= 500);
     const person = (id: string) => board.profiles.some(p => p.id === id && p.kind === "person");
     for (const entry of board.dropPick) {
-      id(entry.id); check(person(entry.profileId) && person(entry.byProfileId) && text(entry.note, true) && entry.note.length <= 200 && Array.isArray(entry.weekdays) && entry.weekdays.length > 0 && entry.weekdays.length <= 5 && new Set(entry.weekdays).size === entry.weekdays.length && entry.weekdays.every(d => Number.isInteger(d) && d >= 0 && d <= 4));
+      id(entry.id);
+      check(person(entry.profileId) && (entry.byProfileId === "" || person(entry.byProfileId)) && (entry.transport === undefined || (entry.transport === "bus" && entry.byProfileId === "")) && (entry.profileIds === undefined || (Array.isArray(entry.profileIds) && entry.profileIds.length > 0 && entry.profileIds.length <= 100 && new Set(entry.profileIds).size === entry.profileIds.length && entry.profileIds.every(person) && entry.profileId === entry.profileIds[0])) && text(entry.note, true) && entry.note.length <= 200 && Array.isArray(entry.weekdays) && entry.weekdays.length > 0 && entry.weekdays.length <= 5 && new Set(entry.weekdays).size === entry.weekdays.length && entry.weekdays.every(d => Number.isInteger(d) && d >= 0 && d <= 4));
     }
   }
   if (board.activities !== undefined) {
