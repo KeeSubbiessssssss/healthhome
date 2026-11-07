@@ -6,21 +6,19 @@ import s from "./family-board.module.css";
 
 export type BoardCommit = (change: (draft: BoardState) => void, message?: string) => Promise<boolean>;
 export const clockLabel = (time: string) => { const [hour, minute] = time.split(":").map(Number); return `${hour % 12 || 12}:${String(minute).padStart(2, "0")}${hour >= 12 ? "pm" : "am"}`; };
-export const shortDate = (date: string) => new Date(`${date}T12:00:00Z`).toLocaleDateString("en-AU", { timeZone: "UTC", day: "numeric", month: "short" });
 
 export function AgendaTiles({ state, offset = 0, profileId = "", compact = false, todayOnly = false, showPeople = true, onEdit }: { state: BoardState; offset?: number; profileId?: string; compact?: boolean; todayOnly?: boolean; showPeople?: boolean; onEdit?: (id: string) => void }) {
   const today = householdDateKey();
   const occupied = weeklyAgenda(state.activities || [], new Date(), offset, profileId);
   const days = weekDates(new Date(), offset).map((date, weekday) => ({ date, weekday, activities: occupied.find(day => day.date === date)?.activities || [] })).filter(day => !todayOnly || day.date === today);
   if (todayOnly && !days.some(day => day.activities.length)) return <p className={s.agendaEmpty}>Nothing scheduled today.</p>;
-  return <div className={`${s.agenda} ${compact ? s.compactAgenda : ""}`}>{days.map(day => <section className={s.agendaDay} key={day.date}><h3>{weekdayNames[day.weekday].slice(0, 3)} <span>{shortDate(day.date)}</span>{day.date === today && <small>Today</small>}</h3><div className={s.agendaTiles}>{day.activities.map(activity => <article key={activity.id} className={`${s.activityTile} ${s[activity.color]}`}><time>{clockLabel(activity.startTime)}{activity.endTime && <>–{clockLabel(activity.endTime)}</>}</time><div><strong>{activity.title}</strong>{showPeople && <small>{activity.profileIds.length ? activity.profileIds.map(id => state.profiles.find(p => p.id === id)?.name || "Unknown").join(" & ") : "Everyone"}</small>}</div>{onEdit && <button className={s.textButton} onClick={() => onEdit(activity.id)} aria-label={`Edit ${activity.title}`}>Edit</button>}</article>)}</div></section>)}</div>;
+  return <div className={`${s.agenda} ${compact ? s.compactAgenda : ""}`}>{days.map(day => <section className={s.agendaDay} key={day.date}><h3>{weekdayNames[day.weekday].slice(0, 3)}{day.date === today && <small>Today</small>}</h3><div className={s.agendaTiles}>{day.activities.map(activity => <article key={activity.id} className={`${s.activityTile} ${s[activity.color]}`}><time>{clockLabel(activity.startTime)}{activity.endTime && <>–{clockLabel(activity.endTime)}</>}</time><div><strong>{activity.title}</strong>{showPeople && <small>{activity.profileIds.length ? activity.profileIds.map(id => state.profiles.find(p => p.id === id)?.name || "Unknown").join(" & ") : "Everyone"}</small>}</div>{onEdit && <button className={s.textButton} onClick={() => onEdit(activity.id)} aria-label={`Edit ${activity.title}`}>Edit</button>}</article>)}</div></section>)}</div>;
 }
 
 export function WeeklySchedule({ state, profileId, busy, commit, onPin, onOptions, pinned }: { state: BoardState; profileId: string; busy: boolean; commit: BoardCommit; onPin: () => void; onOptions: () => void; pinned: boolean }) {
   const [editing, setEditing] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const activity = state.activities?.find(a => a.id === editing);
-  const dates = weekDates();
   const start = (id: string) => { setEditing(id); requestAnimationFrame(() => formRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })); };
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const data = new FormData(event.currentTarget); const text = (key: string) => String(data.get(key) || "").trim();
@@ -42,7 +40,7 @@ export function WeeklySchedule({ state, profileId, busy, commit, onPin, onOption
       <fieldset className={s.activityChoices}><legend>Family members & pets (leave empty for everyone)</legend>{state.profiles.map(profile => <label key={profile.id}><input name="activityProfile" type="checkbox" value={profile.id} defaultChecked={activity?.profileIds.includes(profile.id)}/><span className={`${s.profileDot} ${s[profile.color]}`}/>{profile.name}</label>)}</fieldset>
       <div className={s.formActions}><button className={s.primary} type="submit">{busy ? "Saving…" : "Save weekly activity"}</button><button type="button" className={s.textButton} onClick={() => setEditing(null)}>Cancel</button>{activity && <button type="button" className={s.textButton} onClick={() => { if (window.confirm(`Delete “${activity.title}” from the weekly schedule? This removes all its weekly occurrences.`)) void commit(d => { d.activities = d.activities?.filter(a => a.id !== activity.id); }, "Weekly activity removed.").then(ok => { if (ok) setEditing(null); }); }}>Delete weekly activity</button>}</div>
     </fieldset></form>}
-    <div className={s.weekNavigation}><div><h2>Every week</h2><span>{shortDate(dates[0])} – {shortDate(dates[6])} · weekly recurring activities</span></div></div>
+    <div className={s.weekNavigation}><div><h2>Every week</h2><span>Weekly recurring activities</span></div></div>
     <AgendaTiles state={state} profileId={profileId} onEdit={start}/>
   </>;
 }
