@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { householdMembers } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
@@ -11,7 +11,7 @@ export async function currentUser() {
 
 export async function currentMember() {
   const user = await currentUser();
-  if (!user) return null;
-  const [member] = await db.select().from(householdMembers).where(eq(householdMembers.authUserId, user.id)).limit(1);
+  if (!user?.emailVerified) return null;
+  const [member] = await db.select().from(householdMembers).where(and(eq(householdMembers.authUserId, user.id), eq(householdMembers.isActive, true))).limit(1);
   return member ?? null;
 }

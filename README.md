@@ -2,11 +2,19 @@
 
 A family pinboard for lists, tasks, medication for people and pets, and birthday and Christmas presents. The name is temporary.
 
-## Local use
+## Everyday use
 
-Run `npm run dev` and open http://localhost:3000. Local development needs no login. Add family members and pets in Settings, then create lists, assign tasks, track medication, and plan presents. Drag card handles or use their move buttons to rearrange the board.
+Use https://pikensteiner.me. The user works against the personal production site; code is checked locally before being deployed there. No extra hosting or email provider is required for household invitations.
 
-Local changes are saved in this browser’s local storage. They are not sent to Neon, shared between devices, or automatically copied into a hosted household. Clearing browser site data removes the local board.
+The verified owner (`kee.sublime@gmail.com`, or the explicitly configured `HEALTHHOME_OWNER_EMAIL`) can create the household once. Settings → Access & invitations creates private, single-use, seven-day links bound to the invitee's verified email. Share links yourself. Only the owner can invite, cancel invitations, turn off access or restore it. Members can view and edit the entire household board. Login accounts and family/pet profiles are separate.
+
+Anyone can reach the authentication screen, but signing up does not grant board access. Every board request checks verified email and active household membership. Disabling access blocks subsequent requests; it cannot erase information someone already viewed. Invitation tokens are stored as hashes and travel in URL fragments rather than request URLs. Limits bound invitation creation and household size.
+
+## Local development
+
+Run `npm run dev` for code development; authentication is required by default. Browser-only demonstration mode must be explicitly enabled with `HEALTHHOME_LOCAL_DEMO=1 npm run dev`. Never enable this flag on a deployment. Normal use and testing by the user happen on the production URL.
+
+Demonstration-mode changes are saved in this browser’s local storage. They are not sent to Neon, shared between devices, or automatically copied into a hosted household. Clearing browser site data removes the local board.
 
 ## Hosted use
 
@@ -23,6 +31,12 @@ The Dexcom API integration, connection routes, sync, glucose screens, and old ba
 - Deployment builds validate migrations and apply pending migrations with `DATABASE_URL_UNPOOLED` before building.
 
 `0008_smooth_the_executioner.sql` adds only the household board table. It must be applied to the relevant environment before hosted board use. Local browser mode does not query this table or run migrations.
+
+## Personal hosting accounts
+
+Use `npm run vercel:personal -- <command>` and `npm run neon:personal -- <command>` for infrastructure work. These select the personal Vercel configuration/team and named personal Neon profile explicitly; the machine's default Neon profile belongs to work. On another machine, sign in with these commands' `login` / `auth` subcommands first.
+
+The verified personal email is `kee.sublime@gmail.com`. Vercel hosts `pikensteiner/healthhome`; Neon hosts `HealthHomeApp` in the `Kee Sub` organisation. Exact approved IDs and verification requirements are recorded in `AGENTS.md`. Domain registration and DNS are at GoDaddy. Both `pikensteiner.me` and `www.pikensteiner.me` are attached to the personal Vercel project.
 
 ## Checks
 

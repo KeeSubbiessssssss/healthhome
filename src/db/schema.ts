@@ -94,6 +94,7 @@ export const householdMembers = pgTable(
       .references(() => households.id, { onDelete: "cascade" }),
     authUserId: text("auth_user_id").notNull(),
     displayName: text("display_name").notNull(),
+    email: text("email"),
     role: householdRole("role").notNull().default("member"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -398,3 +399,15 @@ export const familyBoards = pgTable("family_boards", {
   version: integer("version").notNull().default(1),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const householdInvitations = pgTable("household_invitations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  householdId: uuid("household_id").notNull().references(() => households.id, { onDelete: "cascade" }),
+  invitedBy: uuid("invited_by").notNull().references(() => householdMembers.id),
+  email: text("email").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+}, table => [index("household_invitations_household_created_idx").on(table.householdId, table.createdAt)]);

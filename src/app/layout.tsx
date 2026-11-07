@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`h-full antialiased ${handwriting.variable}`} suppressHydrationWarning>
-      <body className="min-h-full flex flex-col">{process.env.NODE_ENV === "development" ? children : <AuthProvider>{children}</AuthProvider>}</body>
+      <body className="min-h-full flex flex-col">{process.env.NODE_ENV === "development" && process.env.HEALTHHOME_LOCAL_DEMO === "1" ? children : <AuthProvider>{children}</AuthProvider>}</body>
     </html>
   );
 }

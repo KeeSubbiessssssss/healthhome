@@ -5,7 +5,7 @@ import { FamilyBoard } from "./family-board";
 export const dynamic = "force-dynamic";
 
 export default async function AppPage() {
-  const local = process.env.NODE_ENV === "development";
+  const local = process.env.NODE_ENV === "development" && process.env.HEALTHHOME_LOCAL_DEMO === "1";
   if (!local) {
     if (!await currentUser()) redirect("/auth/sign-in");
     if (!await currentMember()) redirect("/onboarding");

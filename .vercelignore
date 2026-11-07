@@ -1,0 +1,6 @@
+.vercel
+.env*
+.neon
+.git
+.next
+node_modules
