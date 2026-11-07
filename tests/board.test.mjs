@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mergeBoards, emptyBoard, defaultPlacement, constrainPlacement, replaceFastener, fastenerAppearance, fillRepeat, logDose, moveCard, parseBoard, productLink, linksForGift, occasionsForGift, giftIsBought, undoDose } from '../src/lib/board.ts';
+import { emptyBoard, defaultPlacement, constrainPlacement, replaceFastener, fastenerAppearance, fillRepeat, logDose, moveCard, parseBoard, productLink, linksForGift, occasionsForGift, giftIsBought, undoDose } from '../src/lib/board.ts';
 const medication = () => ({ id: 'med', profileId: 'pet', name: 'Test medication', strength: '', instructions: '', unit: 'mL', unitsLeft: 2, unitsPerDose: .3, dosesPerDay: 1, refillAt: .5, unitsPerRefill: 10, repeats: 2, logs: [], archived: false });
 const board = () => ({ ...emptyBoard(), profiles: [{ id: 'pet', name: 'Test pet', kind: 'pet', birthday: '', species: 'Dog', color: 'sage' }], medications: [medication()] });
 test('people and pets can own medications without login identities', () => {
@@ -135,30 +135,4 @@ test('multiple present links persist and existing single links remain available'
  assert.deepEqual(linksForGift({ ...gift, productLinks: [] }), []);
  assert.throws(() => parseBoard({ ...state, gifts: [{ ...gift, productLinks: [{ label: 'Bad link', url: 'javascript:alert(1)' }] }] }));
  assert.throws(() => parseBoard({ ...state, gifts: [{ ...gift, productLinks: [{ label: 'Missing URL', url: '' }] }] }));
-});
-
-test('bringing a local board online preserves both boards, histories and paper settings', () => {
- const live = emptyBoard();
- live.profiles.push({ id: 'live-person', name: 'Existing person', kind: 'person', birthday: '', species: '', color: 'blue' });
- live.lists.push({ id: 'live-list', title: 'Already online', color: 'rose', items: [] }); live.order.push('live-list');
- const local = board();
- local.medications[0].logs.push({ id: 'old-dose', occurredAt: '2026-11-01T00:00:00.000Z', units: .3, note: 'Existing history', reversed: false });
- local.lists.push({ id: 'local-list', title: 'From testing', color: 'teal', items: [{ id: 'local-task', text: 'An assigned task', done: true, assigneeId: 'pet', due: '' }] }); local.order.push('local-list');
- local.gifts.push({ id: 'local-gift', recipientId: 'pet', occasion: 'birthday', year: 2026, name: 'An idea', cost: 24.95, status: 'requested', notes: 'A saved note', productLinks: [{ label: 'Shop', url: 'https://example.com/item' }] });
- local.cardColors = { welcome: 'teal' }; local.noteLayout = { welcome: defaultPlacement(0) };
- const beforeLive = structuredClone(live), beforeLocal = structuredClone(local);
- const merged = mergeBoards(live, local);
- assert.equal(merged.profiles.length, 2); assert.equal(merged.lists.length, 2);
- assert.deepEqual(merged.medications, local.medications); assert.deepEqual(merged.gifts, local.gifts);
- assert.deepEqual(merged.cardColors, local.cardColors); assert.deepEqual(merged.noteLayout, local.noteLayout);
- assert.ok(merged.order.includes('live-list')); assert.ok(merged.order.includes('local-list'));
- assert.deepEqual(mergeBoards(merged, local), merged);
- assert.deepEqual(live, beforeLive); assert.deepEqual(local, beforeLocal);
-});
-
-test('conflicting local and live records stop import without overwriting either copy', () => {
- const live = board(); const local = structuredClone(live); local.medications[0].unitsLeft = 99;
- const before = structuredClone(live);
- assert.throws(() => mergeBoards(live, local), /changed in both boards/);
- assert.deepEqual(live, before); assert.equal(local.medications[0].unitsLeft, 99);
 });

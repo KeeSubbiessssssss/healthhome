@@ -10,13 +10,9 @@ The verified owner (`kee.sublime@gmail.com`, or the explicitly configured `HEALT
 
 Anyone can reach the authentication screen, but signing up does not grant board access. Every board request checks verified email and active household membership. Disabling access blocks subsequent requests; it cannot erase information someone already viewed. Invitation tokens are stored as hashes and travel in URL fragments rather than request URLs. Limits bound invitation creation and household size.
 
-## Local development
+## Development and deployment
 
-Run `npm run dev` for code development; authentication is required by default. Browser-only demonstration mode must be explicitly enabled with `HEALTHHOME_LOCAL_DEMO=1 npm run dev`. Never enable this flag on a deployment. Normal use and testing by the user happen on the production URL.
-
-Demonstration-mode changes are saved in this browser’s local storage. They are not sent to Neon, shared between devices, or automatically copied into a hosted household. Clearing browser site data removes the local board.
-
-To bring an existing testing board online, temporarily run the local demo on its original origin (normally `http://localhost:3000`). In Settings, choose **Open live board to transfer**. The signed-in owner reviews the counts in the new production tab and chooses **Bring local board into this household**. The original browser copy is retained; existing online records are preserved and conflicting edits stop the import. Local note positions and colours are carried across. The transfer uses origin-checked browser messages, not downloaded files or another service.
+Application changes are checked in the repository and deployed to the personal production site. There is no browser-only board, local-save mode, login bypass or transfer screen. All board reads and writes require authentication and use the online household. The previous local testing data has already been imported into production.
 
 ## Hosted use
 
@@ -32,7 +28,7 @@ The Dexcom API integration, connection routes, sync, glucose screens, and old ba
 - Never run schema push against a shared environment.
 - Deployment builds validate migrations and apply pending migrations with `DATABASE_URL_UNPOOLED` before building.
 
-`0008_smooth_the_executioner.sql` adds only the household board table. It must be applied to the relevant environment before hosted board use. Local browser mode does not query this table or run migrations.
+`0008_smooth_the_executioner.sql` adds only the household board table. It must be applied to the relevant environment before hosted board use.
 
 ## Personal hosting accounts
 

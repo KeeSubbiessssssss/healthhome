@@ -291,8 +291,6 @@
 .accessRows li > div { min-width: 0; overflow-wrap: anywhere; }.accessRows strong, .accessRows small { display: block; }.accessRows small { margin-top: 4px; color: #756c59; font-size: 12px; }.accessRows button { flex-shrink: 0; }
 .accountControls { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 24px; }.accountControls p { flex-basis: 100%; }
 .verificationForm { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; width: 100%; }.verificationForm input { max-width: 260px; }
-.transferPanel { margin-top: 28px; padding: 25px; background: #e9ff64; color: #25274d; border-radius: 2px 2px 14px 2px; }
-.transferPanel h2 { margin: 0; font: 30px var(--font-handwriting), cursive; }.transferPanel p { max-width: 70ch; line-height: 1.6; }
 @media(max-width: 520px) { .accessPanel { padding: 18px; }.inviteForm { align-items: stretch; flex-direction: column; }.accessPanel .sectionHeading { align-items: start; flex-direction: column; gap: 6px; }.accessRows li { flex-wrap: wrap; gap: 10px; } }
 @media(max-width: 520px) { .giftLinkRow { grid-template-columns: minmax(0, 1fr) 30px; gap: 8px; }.giftLinkRow > label:first-child { grid-column: 1 / -1; }.giftLinkRow > button { grid-column: 2; } }
 

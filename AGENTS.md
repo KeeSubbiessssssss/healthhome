@@ -21,7 +21,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## HealthHome database workflow
 
-- The user works on the live personal production site by default. Make and check code locally, then deploy to personal production; do not make them use localhost or previews for normal use. Local browser-only demo mode requires explicit `HEALTHHOME_LOCAL_DEMO=1` and must never be enabled on a deployment.
+- The user works on the live personal production site by default. Make and check code locally, then deploy to personal production; do not make them use localhost or previews for normal use. The local demo, browser board storage and transfer features have been retired after the data was imported into production. Do not reintroduce them or a login bypass.
 - Do not create extra services, subscriptions or paid plans without explicit approval. Household invites are copyable links shared by the owner, not an external email integration.
 
 - Before adding or changing application data, inspect the linked Neon branch and existing Drizzle migration state.

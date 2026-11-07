@@ -15,31 +15,6 @@ export const occasionsForGift = (gift: Gift) => gift.occasions ?? [gift.occasion
 export const linksForGift = (gift: Gift): GiftProductLink[] => gift.productLinks ?? (gift.productUrl ? [{ label: "View product", url: gift.productUrl }] : []);
 export const giftIsBought = (gift: Gift) => gift.status === "bought" || gift.status === "wrapped";
 
-// Import is additive and repeatable; a changed existing record requires review.
-export function mergeBoards(currentValue: BoardState, incomingValue: BoardState): BoardState {
-  const current = parseBoard(structuredClone(currentValue));
-  const incoming = parseBoard(structuredClone(incomingValue));
-  function combine<T extends { id: string }>(existing: T[], added: T[]): T[] {
-    const result = [...existing];
-    for (const item of added) {
-      const previous = existing.find(value => value.id === item.id);
-      if (previous && JSON.stringify(previous) !== JSON.stringify(item)) throw new Error("A record has changed in both boards. Nothing was imported; your live and local boards are still intact.");
-      if (!previous) result.push(item);
-    }
-    return result;
-  }
-  return parseBoard({ ...current,
-    profiles: combine(current.profiles, incoming.profiles),
-    lists: combine(current.lists, incoming.lists),
-    gifts: combine(current.gifts, incoming.gifts),
-    medications: combine(current.medications, incoming.medications),
-    order: [...new Set([...incoming.order, ...current.order])],
-    cardColors: { ...current.cardColors, ...incoming.cardColors },
-    noteLayout: { ...current.noteLayout, ...incoming.noteLayout },
-    removedNotes: [...new Set([...(current.removedNotes || []), ...(incoming.removedNotes || [])])],
-  });
-}
-
 export function productLink(value: string): string {
   const link = value.trim();
   if (!link) return "";
