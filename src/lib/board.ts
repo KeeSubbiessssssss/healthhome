@@ -1,7 +1,8 @@
 export type Profile = { id: string; name: string; kind: "person" | "pet"; birthday: string; species: string; color: string };
 export type Task = { id: string; text: string; done: boolean; assigneeId: string; due: string };
 export type TaskList = { id: string; title: string; color: string; items: Task[] };
-export type Gift = { id: string; recipientId: string; occasion: "birthday" | "christmas"; occasions?: ("birthday" | "christmas")[]; year: number; name: string; cost: number | null; productUrl?: string; status: "idea" | "requested" | "bought" | "wrapped"; notes: string };
+export type GiftProductLink = { label: string; url: string };
+export type Gift = { id: string; recipientId: string; occasion: "birthday" | "christmas"; occasions?: ("birthday" | "christmas")[]; year: number; name: string; cost: number | null; productUrl?: string; productLinks?: GiftProductLink[]; status: "idea" | "requested" | "bought" | "wrapped"; notes: string };
 export type DoseLog = { id: string; occurredAt: string; units: number; note: string; reversed: boolean };
 export type Medication = { id: string; profileId: string; name: string; strength: string; instructions: string; expiresOn?: string; unit: string; unitsLeft: number; unitsPerDose: number; dosesPerDay: number; refillAt: number; unitsPerRefill: number; repeats: number; logs: DoseLog[]; archived: boolean };
 export type Fastener = { variant: number; offset: number; angle: number; size: number };
@@ -11,6 +12,7 @@ export const colors = ["butter", "sage", "rose", "blue", "cream", "peach", "mint
 export const emptyBoard = (): BoardState => ({ schemaVersion: 1, profiles: [], lists: [], gifts: [], medications: [], order: ["welcome", "medications", "gifts"] });
 export const newId = () => crypto.randomUUID();
 export const occasionsForGift = (gift: Gift) => gift.occasions ?? [gift.occasion];
+export const linksForGift = (gift: Gift): GiftProductLink[] => gift.productLinks ?? (gift.productUrl ? [{ label: "View product", url: gift.productUrl }] : []);
 export const giftIsBought = (gift: Gift) => gift.status === "bought" || gift.status === "wrapped";
 
 export function productLink(value: string): string {
@@ -41,7 +43,7 @@ export function parseBoard(value: unknown): BoardState {
     id(list.id); check(text(list.title, true) && colors.includes(list.color as typeof colors[number]) && Array.isArray(list.items) && list.items.length <= 1000);
     for (const t of list.items) { id(t.id); check(text(t.text, true) && typeof t.done === "boolean" && profile(t.assigneeId, true) && date(t.due)); }
   }
-  for (const gift of board.gifts) { id(gift.id); check(profile(gift.recipientId) && text(gift.name, true) && text(gift.notes) && (gift.productUrl === undefined || (text(gift.productUrl) && productLink(gift.productUrl) === gift.productUrl)) && ["birthday", "christmas"].includes(gift.occasion) && ["idea", "requested", "bought", "wrapped"].includes(gift.status) && (gift.occasions === undefined || (Array.isArray(gift.occasions) && gift.occasions.length > 0 && gift.occasions.length <= 2 && new Set(gift.occasions).size === gift.occasions.length && gift.occasions.every(o => ["birthday", "christmas"].includes(o)) && gift.occasions.includes(gift.occasion))) && Number.isInteger(gift.year) && gift.year >= 2000 && gift.year <= 2200 && (gift.cost === null || number(gift.cost))); }
+  for (const gift of board.gifts) { id(gift.id); check(profile(gift.recipientId) && text(gift.name, true) && text(gift.notes) && (gift.productUrl === undefined || (text(gift.productUrl) && productLink(gift.productUrl) === gift.productUrl)) && (gift.productLinks === undefined || (Array.isArray(gift.productLinks) && gift.productLinks.length <= 20 && gift.productLinks.every(link => !!link && text(link.label) && link.label.length <= 200 && text(link.url, true) && productLink(link.url) === link.url))) && ["birthday", "christmas"].includes(gift.occasion) && ["idea", "requested", "bought", "wrapped"].includes(gift.status) && (gift.occasions === undefined || (Array.isArray(gift.occasions) && gift.occasions.length > 0 && gift.occasions.length <= 2 && new Set(gift.occasions).size === gift.occasions.length && gift.occasions.every(o => ["birthday", "christmas"].includes(o)) && gift.occasions.includes(gift.occasion))) && Number.isInteger(gift.year) && gift.year >= 2000 && gift.year <= 2200 && (gift.cost === null || number(gift.cost))); }
   for (const m of board.medications) {
     id(m.id); check(profile(m.profileId, true) && text(m.name, true) && text(m.strength) && text(m.instructions) && (m.expiresOn === undefined || date(m.expiresOn)) && text(m.unit, true) && [m.unitsLeft, m.unitsPerDose, m.dosesPerDay, m.refillAt, m.unitsPerRefill, m.repeats].every(number) && Number.isInteger(m.repeats) && Number.isInteger(m.dosesPerDay) && typeof m.archived === "boolean" && Array.isArray(m.logs));
     for (const log of m.logs) { id(log.id); check(number(log.units) && log.units > 0 && typeof log.occurredAt === "string" && !Number.isNaN(Date.parse(log.occurredAt)) && text(log.note) && typeof log.reversed === "boolean"); }

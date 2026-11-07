@@ -4,17 +4,16 @@ import { useCallback, useLayoutEffect, useRef, type CSSProperties, type ReactNod
 import { constrainPlacement, fastenerAppearance, replaceFastener, type NotePlacement } from "@/lib/board";
 import s from "./family-board.module.css";
 
-type Gesture = { mode: "move" | "rotate" | "tear"; pointer: number; startX: number; startY: number; grabX: number; grabY: number; original: NotePlacement; active: boolean; progress: number; };
-type Props = { id: string; color: string; placement: NotePlacement; front: number; disabled: boolean; palette: ReactNode; children: ReactNode; onChange: (p: NotePlacement) => Promise<boolean>; onRemove: () => Promise<boolean> };
+type Gesture = { mode: "move" | "rotate"; pointer: number; startX: number; startY: number; grabX: number; grabY: number; original: NotePlacement; active: boolean; };
+type Props = { id: string; color: string; placement: NotePlacement; front: number; disabled: boolean; palette: ReactNode; children: ReactNode; onChange: (p: NotePlacement) => Promise<boolean> };
 const transform = (p: NotePlacement) => `translate3d(${p.x}px, ${p.y}px, 0) rotate(${p.angle}deg)`;
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export function FreeNote({ id, color, placement, front, disabled, palette, children, onChange, onRemove }: Props) {
+export function FreeNote({ id, color, placement, front, disabled, palette, children, onChange }: Props) {
   const note = useRef<HTMLElement>(null);
   const current = useRef(placement);
   const gesture = useRef<Gesture | null>(null);
   const frame = useRef(0);
-  const removing = useRef(false);
   const suppressClick = useRef(false);
   const pendingDrop = useRef(false);
   const departing = useRef<Set<HTMLElement>>(new Set());
@@ -82,12 +81,12 @@ export function FreeNote({ id, color, placement, front, disabled, palette, child
   }
 
   function start(event: ReactPointerEvent<HTMLElement>, mode: Gesture["mode"]) {
-    if (disabled || removing.current || event.button !== 0 || !event.isPrimary) return;
+    if (disabled || event.button !== 0 || !event.isPrimary) return;
     const target = event.target as HTMLElement;
     if (mode === "move" && target.closest("button,a,input,select,textarea,label,summary,details") && !target.closest("[data-note-grip]")) return;
     const el = note.current!;
     const stage = el.parentElement!; const rect = stage.getBoundingClientRect(); const scale = rect.width / stage.offsetWidth;
-    gesture.current = { mode, pointer: event.pointerId, startX: event.clientX, startY: event.clientY, grabX: (event.clientX - rect.left) / scale - current.current.x, grabY: (event.clientY - rect.top) / scale - current.current.y, original: { ...current.current }, active: false, progress: 0 };
+    gesture.current = { mode, pointer: event.pointerId, startX: event.clientX, startY: event.clientY, grabX: (event.clientX - rect.left) / scale - current.current.x, grabY: (event.clientY - rect.top) / scale - current.current.y, original: { ...current.current }, active: false };
     suppressClick.current = false;
     el.setPointerCapture(event.pointerId);
     event.stopPropagation();
@@ -106,47 +105,25 @@ export function FreeNote({ id, color, placement, front, disabled, palette, child
       if (viewport) { const bounds = viewport.getBoundingClientRect(); if (event.clientY > bounds.bottom - 35) viewport.scrollTop += 10; else if (event.clientY < bounds.top + 35) viewport.scrollTop -= 10; if (event.clientX > bounds.right - 35) viewport.scrollLeft += 8; else if (event.clientX < bounds.left + 35) viewport.scrollLeft -= 8; }
     } else if (g.mode === "rotate") {
       current.current = constrainPlacement({ ...g.original, angle: g.original.angle + dx / 4, z: front });
-    } else {
-      g.progress = Math.min(1, Math.hypot(dx, dy) / 115);
-      el.style.setProperty("--tear-distance", `${g.progress * 55}px`);
-      el.dataset.tearing = "true";
     }
     if (!frame.current) frame.current = requestAnimationFrame(() => { frame.current = 0; paint(); });
   }
   function clear() {
     const el = note.current;
-    if (el) { delete el.dataset.lifted; delete el.dataset.tearing; el.style.removeProperty("will-change"); el.style.removeProperty("--tear-distance"); }
+    if (el) { delete el.dataset.lifted; el.style.removeProperty("will-change"); }
     gesture.current = null; cancelAnimationFrame(frame.current); frame.current = 0;
-  }
-  async function tearAway() {
-    if (!note.current || removing.current || disabled) return;
-    removing.current = true;
-    releaseFastener();
-    const el = note.current;
-    el.dataset.tearing = "true";
-    const animation = reducedMotion() ? null : el.animate([
-      { transform: transform(current.current), opacity: 1, clipPath: "polygon(0 0,100% 0,100% 100%,0 100%)" },
-      { transform: `${transform(current.current)} translateY(30px) rotate(6deg)`, opacity: 1, offset: .65, clipPath: "polygon(0 0,100% 0,100% 74%,96% 77%,91% 73%,84% 78%,77% 74%,69% 78%,62% 73%,54% 77%,46% 73%,37% 78%,30% 74%,20% 77%,12% 73%,4% 78%,0 75%)" },
-      { transform: `${transform(current.current)} translateY(100px) rotate(12deg)`, opacity: 0, clipPath: "polygon(0 0,100% 0,100% 72%,0 74%)" },
-    ], { duration: 260, easing: "cubic-bezier(.3,0,.8,.4)", fill: "forwards" });
-    try { await animation?.finished; const saved = await onRemove(); if (!saved) { animation?.cancel(); clear(); paint(); } }
-    catch { animation?.cancel(); clear(); paint(); }
-    finally { removing.current = false; }
   }
   function finish(event: ReactPointerEvent<HTMLElement>) {
     const g = gesture.current; if (!g || g.pointer !== event.pointerId) return;
     suppressClick.current = g.active;
     if (g.active) window.setTimeout(() => { suppressClick.current = false; }, 0);
-    const rip = g.mode === "tear" && g.progress >= .55;
-    if (g.mode === "tear") current.current = g.original;
-    const changed = g.active && g.mode !== "tear";
+    const changed = g.active;
     const original = g.original;
     clear(); paint();
-    if (rip) { void tearAway(); return; }
     if (changed) {
       current.current = replaceFastener(current.current); pendingDrop.current = true;
       void onChange(current.current).then(ok => { if (!ok) { current.current = original; paint(); layFastenerDown(); } });
-    } else if (g.active) { pendingDrop.current = true; layFastenerDown(); }
+    }
   }
   function cancel() { if (gesture.current) current.current = gesture.current.original; clear(); paint(); pendingDrop.current = true; layFastenerDown(); }
   function keyboard(event: KeyboardEvent<HTMLButtonElement>) {
@@ -171,6 +148,5 @@ export function FreeNote({ id, color, placement, front, disabled, palette, child
     </div>
     {children}
     <button className={s.rotateNote} aria-label="Rotate note" title="Drag to rotate · Enter to turn 5 degrees" disabled={disabled} onPointerDown={event => start(event, "rotate")} onClick={event => { if (event.detail === 0) (() => { releaseFastener(); pendingDrop.current = true; void onChange(replaceFastener(constrainPlacement({ ...placement, angle: placement.angle >= 20 ? -20 : placement.angle + 5 }))); })(); }}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10a8 8 0 1 0-2 8M20 4v6h-6"/></svg></button>
-    <button className={s.tearCorner} aria-label="Tear note off into the tray" title="Pull this corner to tear off · Enter to put away" disabled={disabled} onPointerDown={event => start(event, "tear")} onClick={event => { if (event.detail === 0) void tearAway(); }}><span/></button>
   </article>;
 }

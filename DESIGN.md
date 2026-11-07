@@ -23,3 +23,7 @@ Physical pins can be pulled out and reinserted; tape peels and is pressed back d
 ## Automatic fasteners
 
 Fasteners are consequences of moving paper, never click-to-apply controls. At the drag threshold, the old pin falls or the tape peels away independently at its original canvas position; only that decoration becomes temporary debris. The live note remains one opaque element with immediate pointer tracking. Every completed move or rotation selects a fresh pin or tape, one of five variants, with random off-centre offset, angle and tape width. The appearance is saved with the placement, so refreshing does not randomise it. Cancellation restores the original fastener. Reduced motion keeps the same outcomes without the falling/peeling/insertion animation.
+
+## Removed paper tray
+
+The user removed the paper tray because the current board notes are app modules. All existing notes are visible, including notes marked hidden by older snapshots. There is no tear-off/archive gesture or tray UI. Automatic pin falling, tape peeling, random replacement fasteners and free movement remain. Legacy removedNotes metadata stays readable for compatibility but is ignored by the UI.

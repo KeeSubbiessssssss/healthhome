@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { emptyBoard, defaultPlacement, constrainPlacement, replaceFastener, fastenerAppearance, fillRepeat, logDose, moveCard, parseBoard, productLink, occasionsForGift, giftIsBought, undoDose } from '../src/lib/board.ts';
+import { emptyBoard, defaultPlacement, constrainPlacement, replaceFastener, fastenerAppearance, fillRepeat, logDose, moveCard, parseBoard, productLink, linksForGift, occasionsForGift, giftIsBought, undoDose } from '../src/lib/board.ts';
 const medication = () => ({ id: 'med', profileId: 'pet', name: 'Test medication', strength: '', instructions: '', unit: 'mL', unitsLeft: 2, unitsPerDose: .3, dosesPerDay: 1, refillAt: .5, unitsPerRefill: 10, repeats: 2, logs: [], archived: false });
 const board = () => ({ ...emptyBoard(), profiles: [{ id: 'pet', name: 'Test pet', kind: 'pet', birthday: '', species: 'Dog', color: 'sage' }], medications: [medication()] });
 test('people and pets can own medications without login identities', () => {
@@ -122,4 +122,17 @@ test('a drop chooses a fresh pin or tape with persistent, off-centre appearance'
  for (const invalid of [{ variant: 5 }, { offset: 90 }, { angle: 31 }, { size: 0 }]) {
   assert.throws(() => parseBoard({ ...state, noteLayout: { welcome: { ...pin, fastener: { ...pin.fastener, ...invalid } } } }));
  }
+});
+
+test('multiple present links persist and existing single links remain available', () => {
+ const state = board();
+ const gift = { id: 'multi-link', recipientId: 'pet', occasion: 'birthday', year: 2026, name: 'Test present', cost: 49.95, status: 'idea', notes: '', productUrl: 'https://example.com/original' };
+ assert.deepEqual(linksForGift(gift), [{ label: 'View product', url: gift.productUrl }]);
+ gift.productLinks = [{ label: 'Shop one', url: gift.productUrl }, { label: 'Another option', url: 'https://example.org/product' }];
+ state.gifts.push(gift);
+ const saved = parseBoard(JSON.parse(JSON.stringify(state)));
+ assert.deepEqual(linksForGift(saved.gifts[0]), gift.productLinks);
+ assert.deepEqual(linksForGift({ ...gift, productLinks: [] }), []);
+ assert.throws(() => parseBoard({ ...state, gifts: [{ ...gift, productLinks: [{ label: 'Bad link', url: 'javascript:alert(1)' }] }] }));
+ assert.throws(() => parseBoard({ ...state, gifts: [{ ...gift, productLinks: [{ label: 'Missing URL', url: '' }] }] }));
 });

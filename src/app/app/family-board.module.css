@@ -260,14 +260,22 @@
 .departingFastener { position: absolute !important; pointer-events: none !important; margin: 0 !important; will-change: transform, opacity; }
 .rotateNote { position: absolute !important; right: -10px; top: -10px; width: 25px; height: 25px; display: grid; place-items: center; border: 1px dashed #776d5355; border-radius: 50%; padding: 3px; background: #fffaf0; color: #665738; opacity: 0; cursor: ew-resize !important; touch-action: none; }
 .freeNote:hover .rotateNote, .rotateNote:focus-visible { opacity: 1; }
-.tearCorner { position: absolute !important; bottom: -1px; right: -1px; width: 28px; height: 29px; padding: 0; border: 0; background: transparent; cursor: nwse-resize !important; touch-action: none; }
-.tearCorner span { display: block; position: absolute; right: 0; bottom: 0; width: 21px; height: 21px; background: #fffdf2a6; clip-path: polygon(100% 0,100% 100%,0 100%); transform-origin: bottom right; transition: transform 130ms ease; filter: drop-shadow(-1px -1px 1px #55432922); }
-.tearCorner:hover span { transform: scale(1.33); }
-.freeNote[data-tearing=true] { --tear-distance: 0px; clip-path: polygon(0 0,100% 0,100% calc(100% - var(--tear-distance)),96% calc(100% - var(--tear-distance) + 4px),90% calc(100% - var(--tear-distance)),83% calc(100% - var(--tear-distance) + 5px),75% calc(100% - var(--tear-distance)),66% calc(100% - var(--tear-distance) + 4px),58% calc(100% - var(--tear-distance)),48% calc(100% - var(--tear-distance) + 5px),39% calc(100% - var(--tear-distance)),30% calc(100% - var(--tear-distance) + 4px),21% calc(100% - var(--tear-distance)),12% calc(100% - var(--tear-distance) + 4px),5% calc(100% - var(--tear-distance)),0 calc(100% - var(--tear-distance) + 4px)); }
-.paperTray { padding: 18px 20px; background: #d7c6a2; border-block: 1px solid #bba67b; color: #514530; }
-.paperTray > strong { font: 24px var(--font-handwriting), cursive; }.paperTray p { font-size: 11px; margin: 6px 0 14px; }.emptyTray { font-size: 11px; display: block; line-height: 1.6; }
-.paperTray > button { display: inline-flex; gap: 18px; align-items: center; margin: 0 9px 9px 0; padding: 11px 14px; border: 0; border-radius: 2px; background: #fffaf0; color: #514530; font-size: 12px; box-shadow: 1px 3px 5px #55432919; }.paperTray > button > span:last-child { font-size: 10px; text-decoration: underline; }
 @media(max-width: 760px) { .canvasWorkstation { margin-inline: -7px; }.canvasDock { padding: 10px; gap: 9px; }.canvasHint { flex-basis: 100%; font-size: 20px; }.canvasDockActions { margin-left: auto; }.canvasDockActions button, .zoomControls button { padding: 8px; font-size: 10px; }.canvasViewport { min-height: 430px; height: 70vh; }.rotateNote { opacity: 1; } }
-@media(prefers-reduced-motion: reduce) { .paper.freeNote, .realPin, .realTape span, .tearCorner span { transition: none; } }
+@media(prefers-reduced-motion: reduce) { .paper.freeNote, .realPin, .realTape span { transition: none; } }
 /* Saving must never move the canvas beneath a released note. */
 .feedback, .feedback:empty { min-height: 30px; }
+
+.topbarTitle { margin: 0; color: #303d36; font: 400 34px/1.05 var(--font-handwriting), cursive; letter-spacing: -.02em; }
+.topbarActions { display: flex; align-items: center; gap: 20px; }
+@media(max-width: 760px) { .topbarTitle { font-size: 29px; }.topbarActions { gap: 12px; }.topbarActions .primary { padding: 9px 11px; font-size: 11px; min-height: 36px; } }
+@media(max-width: 520px) { .topbarTitle { font-size: 25px; }.topbarActions { gap: 8px; }.topbarActions .date { display: none; }.topbarActions .primary { padding: 8px 10px; } }
+
+.giftLinkEditor { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 14px 0; border: 0; border-top: 1px dashed #c9bda2; }
+.giftLinkEditor legend { padding: 0 8px 0 0; font-size: 12px; font-weight: 600; }
+.giftLinkRows { display: grid; gap: 12px; margin-bottom: 10px; }
+.giftLinkRow { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) 30px; align-items: end; gap: 12px; }
+.giftLinkRow > button { margin-bottom: 7px; }
+.giftProductLinks { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; min-width: 0; }
+.giftProductLinks .productLink { min-width: 0; overflow-wrap: anywhere; }
+.giftProductLinks .productLink svg { flex-shrink: 0; }
+@media(max-width: 520px) { .giftLinkRow { grid-template-columns: minmax(0, 1fr) 30px; gap: 8px; }.giftLinkRow > label:first-child { grid-column: 1 / -1; }.giftLinkRow > button { grid-column: 2; } }
