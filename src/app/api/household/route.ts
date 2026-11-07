@@ -11,7 +11,7 @@ export async function GET() {
   if (actor.role !== "owner") return json({ role: actor.role, name: actor.displayName });
   const members = await db.select({ id: householdMembers.id, name: householdMembers.displayName, email: householdMembers.email, role: householdMembers.role, active: householdMembers.isActive }).from(householdMembers).where(eq(householdMembers.householdId, actor.householdId)).orderBy(householdMembers.createdAt);
   const invitations = await db.select({ id: householdInvitations.id, email: householdInvitations.email, expiresAt: householdInvitations.expiresAt, acceptedAt: householdInvitations.acceptedAt, revokedAt: householdInvitations.revokedAt }).from(householdInvitations).where(eq(householdInvitations.householdId, actor.householdId)).orderBy(desc(householdInvitations.createdAt)).limit(50);
-  return json({ role: actor.role, name: actor.displayName, members, invitations, now: Date.now() });
+  return json({ role: actor.role, name: actor.displayName, members: members.map(m => m.id === actor.id ? { ...m, email: actor.email } : m), invitations, now: Date.now() });
 }
 
 export async function POST(request: Request) {
@@ -26,6 +26,7 @@ export async function POST(request: Request) {
       await tx.select({ id: householdMembers.id }).from(householdMembers).where(eq(householdMembers.id, actor.id)).for("update");
       if (body.action === "invite") {
         const email = invitationEmail(body.email);
+        if (email === actor.email) throw new AccessError("You already have owner access. Invite someone else’s email address.");
         const members = await tx.select().from(householdMembers).where(eq(householdMembers.householdId, actor.householdId));
         const existing = members.find(m => m.email === email);
         if (existing) throw new AccessError(existing.isActive ? "This person already has access." : "This person already has a login. Restore their access in the list below.");
