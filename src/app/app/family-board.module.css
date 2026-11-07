@@ -419,3 +419,56 @@
 .memberDoseName { display: block; font-size: 12px; margin-top: 6px; }
 @media(max-width: 1150px) { .regimenFields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media(max-width: 520px) { .regimenFields { grid-template-columns: 1fr; } }
+
+/* A weekly itinerary: only activities have tiles; there is no empty hourly grid. */
+.scheduleMain .pageHeading { margin-top: 24px; }
+.scheduleMain .pageHeading h1 { font-size: 36px; }
+.scheduleMain .pageHeading p { display: none; }
+.scheduleActions { display: flex; flex-wrap: wrap; gap: 10px; }
+.activityChoices { grid-column: 1 / -1; margin: 0; padding: 12px 0; border: 0; border-top: 1px dashed #8fb8b5; display: flex; flex-wrap: wrap; gap: 10px 18px; }
+.activityChoices legend { padding: 0 10px 0 0; font-size: 12px; font-weight: 600; }
+.activityChoices label { display: flex; align-items: center; gap: 6px; min-height: 32px; font-size: 12px; }
+.activityChoices input, .summaryOptionGroup input { accent-color: #3d3588; width: 16px; height: 16px; }
+.profileDot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
+.weekNavigation { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 18px 0; }
+.weekNavigation h2 { margin: 0 0 3px; font: 28px var(--font-handwriting), cursive; }
+.weekNavigation span { font-size: 12px; color: #365d69; }
+.agenda { display: grid; grid-template-columns: repeat(7, minmax(125px, 1fr)); gap: 10px; overflow-x: auto; padding: 8px 2px 18px; scrollbar-color: #3d3588 #cdeee5; scrollbar-width: thin; }
+.agendaDay { min-width: 0; }
+.agendaDay h3 { margin: 0 0 10px; font: 25px/1.1 var(--font-handwriting), cursive; color: #2d2b68; }
+.agendaDay h3 > span { display: block; margin-top: 4px; font: 11px Arial, sans-serif; }
+.agendaDay h3 > small { display: inline-block; background: #e9ff64; padding: 3px 6px; margin-top: 5px; font: 10px Arial, sans-serif; }
+.agendaTiles { display: grid; align-content: start; gap: 8px; }
+.activityTile { display: flex; flex-direction: column; align-items: start; gap: 6px; min-width: 0; padding: 10px; border-radius: 2px 2px 8px 2px; box-shadow: 1px 3px 6px #292c2617; }
+.activityTile time { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.activityTile strong { display: block; font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
+.activityTile small { display: block; margin-top: 4px; font-size: 11px; line-height: 1.35; overflow-wrap: anywhere; }
+.agendaEmpty { font-size: 12px; line-height: 1.5; margin: 12px 0; }
+.paper.freeNote.schedulePaper { border-top: 6px solid #ff8965; border-radius: 2px 2px 8px 2px; padding: 36px 18px 20px; touch-action: auto; }
+.scheduleNoteBody { height: 100%; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #3d3588 transparent; cursor: auto; }
+.scheduleNoteBody .noteTitle h2 { font-size: 26px; }
+.scheduleNoteBody .noteLink { padding-block: 10px; margin-top: 6px; }
+.compactAgenda { grid-template-columns: repeat(7, minmax(96px, 1fr)); gap: 8px; padding-bottom: 6px; }
+.compactAgenda .agendaDay h3 { font-size: 22px; margin-bottom: 8px; }
+.compactAgenda .activityTile { padding: 7px; box-shadow: none; }
+.compactAgenda .activityTile strong { font-size: 11px; }
+.compactAgenda .activityTile time, .compactAgenda .activityTile small { font-size: 10px; }
+.paper.freeNote > .resizeNote { position: absolute; bottom: 0; right: 0; width: 32px; height: 32px; border: 0; background: #ff8965; color: #2d2b68; border-radius: 3px 0 6px 0; display: grid; place-items: center; cursor: nwse-resize; touch-action: none; }
+.noteGrip { touch-action: none; }
+.summaryOptionsGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 0; margin: 0; border: 0; min-width: 0; }
+.summaryOptionGroup { display: flex; flex-direction: column; gap: 10px; padding: 14px 0 0; margin: 0; border: 0; border-top: 1px dashed #8fb8b5; min-width: 0; }
+.summaryOptionGroup legend { font: 26px var(--font-handwriting), cursive; padding-right: 10px; }
+.summaryOptionGroup > label:not(.field) { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 12px; }
+.summaryToggle { font-weight: 700; }
+.summaryOptionsGrid > .formActions { grid-column: 1 / -1; }
+.summaryTotal { margin: 10px 0; font-size: 13px; line-height: 1.5; }
+.summaryTotal > strong { font-size: 18px; }
+.summarySection { margin: 12px 0; }
+.summarySection h3 { margin: 0 0 5px; font: 23px var(--font-handwriting), cursive; }
+.summarySection p { font-size: 12px; margin: 4px 0; line-height: 1.5; }
+.summarySection ul, .summaryItems { list-style: none; margin: 0; padding: 0; }
+.summarySection li, .summaryItems li { display: flex; flex-direction: column; gap: 3px; padding: 6px 0; font-size: 12px; border-bottom: 1px solid #292c2626; overflow-wrap: anywhere; }
+.summarySection li > span, .summaryItems li > span { font-size: 11px; }
+.summaryUrgent { display: inline-block; align-self: start; background: #9e243c; color: #fffdf5; padding: 4px 6px; border-radius: 2px; }
+.sectionSummaryControl { display: flex; justify-content: end; margin: 8px 0; }
+@media(max-width: 760px) { .scheduleActions { width: 100%; }.scheduleMain .pageHeading h1 { font-size: 32px; }.summaryOptionsGrid { grid-template-columns: 1fr; }.agenda { grid-template-columns: repeat(7, 140px); }.compactAgenda { grid-template-columns: repeat(7, 96px); }.canvasDockActions .date { flex-shrink: 0; }.canvasDockActions > button { margin-left: 0; } }

@@ -7,9 +7,12 @@ export type DoseLog = { id: string; occurredAt: string; units: number; note: str
 export type StockChange = { id: string; occurredAt: string; action: "consume" | "replenish" | "correct" | "repeat"; before: number; after: number; note: string };
 export type MedicationRegimen = { profileId: string; unitsPerDose: number; dosesPerDay: number; doseTiming: string; instructions: string };
 export type Medication = { id: string; profileId: string; regimens?: MedicationRegimen[]; name: string; strength: string; instructions: string; doseTiming?: string; stockChanges?: StockChange[]; expiresOn?: string; unit: string; unitsLeft: number; unitsPerDose: number; dosesPerDay: number; refillAt: number; unitsPerRefill: number; repeats: number; logs: DoseLog[]; archived: boolean };
+export type WeeklyActivity = { id: string; title: string; profileIds: string[]; weekdays: number[]; startTime: string; endTime: string; color: string };
+export type SummaryKind = "medications" | "gifts" | "tasks-summary" | "schedule";
+export type SummaryPreferences = { pinned: boolean; fields: string[]; profileId: string };
 export type Fastener = { variant: number; offset: number; angle: number; size: number };
-export type NotePlacement = { fastener?: Fastener; x: number; y: number; angle: number; z: number; attachment: "pin" | "tape" | "loose" };
-export type BoardState = { schemaVersion: 1; profiles: Profile[]; lists: TaskList[]; gifts: Gift[]; medications: Medication[]; order: string[]; cardColors?: Record<string, string>; noteLayout?: Record<string, NotePlacement>; removedNotes?: string[] };
+export type NotePlacement = { width?: number; height?: number; fastener?: Fastener; x: number; y: number; angle: number; z: number; attachment: "pin" | "tape" | "loose" };
+export type BoardState = { schemaVersion: 1; activities?: WeeklyActivity[]; summaries?: Partial<Record<SummaryKind, SummaryPreferences>>; profiles: Profile[]; lists: TaskList[]; gifts: Gift[]; medications: Medication[]; order: string[]; cardColors?: Record<string, string>; noteLayout?: Record<string, NotePlacement>; removedNotes?: string[] };
 export const colors = ["butter", "sage", "rose", "blue", "cream", "peach", "mint", "lavender", "lilac", "coral", "lemon", "teal", "sand", "terracotta", "periwinkle"] as const;
 export const emptyBoard = (): BoardState => ({ schemaVersion: 1, profiles: [], lists: [], gifts: [], medications: [], order: ["welcome", "medications", "gifts"] });
 export const newId = () => crypto.randomUUID();
@@ -64,14 +67,26 @@ export function parseBoard(value: unknown): BoardState {
     if (m.stockChanges !== undefined) { check(Array.isArray(m.stockChanges) && m.stockChanges.length <= 2000); for (const change of m.stockChanges) { id(change.id); check(["consume", "replenish", "correct", "repeat"].includes(change.action) && number(change.before) && number(change.after) && text(change.note) && typeof change.occurredAt === "string" && !Number.isNaN(Date.parse(change.occurredAt))); } }
     for (const log of m.logs) { id(log.id); check(number(log.units) && log.units > 0 && typeof log.occurredAt === "string" && !Number.isNaN(Date.parse(log.occurredAt)) && text(log.note) && typeof log.reversed === "boolean" && (log.tracksStock === undefined || typeof log.tracksStock === "boolean") && (log.profileId === undefined || text(log.profileId))); }
   }
-  const cards = new Set(["welcome", "medications", "gifts", ...board.lists.map(l => l.id)]);
+  if (board.activities !== undefined) {
+    check(Array.isArray(board.activities) && board.activities.length <= 500);
+    for (const activity of board.activities) {
+      id(activity.id); check(text(activity.title, true) && colors.includes(activity.color as typeof colors[number]) && Array.isArray(activity.profileIds) && new Set(activity.profileIds).size === activity.profileIds.length && activity.profileIds.every(p => profile(p)) && Array.isArray(activity.weekdays) && activity.weekdays.length > 0 && activity.weekdays.length <= 7 && new Set(activity.weekdays).size === activity.weekdays.length && activity.weekdays.every(d => Number.isInteger(d) && d >= 0 && d <= 6) && validTime(activity.startTime) && (activity.endTime === "" || (validTime(activity.endTime) && activity.endTime > activity.startTime)));
+    }
+  }
+  if (board.summaries !== undefined) {
+    check(!!board.summaries && typeof board.summaries === "object" && !Array.isArray(board.summaries));
+    for (const [kind, prefs] of Object.entries(board.summaries)) check(Object.hasOwn(summaryOptions, kind) && !!prefs && typeof prefs.pinned === "boolean" && profile(prefs.profileId, true) && Array.isArray(prefs.fields) && prefs.fields.length > 0 && new Set(prefs.fields).size === prefs.fields.length && prefs.fields.every(f => summaryOptions[kind as SummaryKind].fields.some(option => option.id === f)));
+  }
+  check(board.lists.every(list => !["welcome", "medications", "gifts", "schedule", "tasks-summary"].includes(list.id)));
+  const cards = new Set(["welcome", "medications", "gifts", ...board.lists.map(l => l.id), ...board.order.filter(id => id === "schedule" || id === "tasks-summary")]);
+  if (board.summaries) for (const kind of ["schedule", "tasks-summary"] as const) if (board.summaries[kind]?.pinned) check(cards.has(kind));
   if (board.cardColors !== undefined) {
     check(!!board.cardColors && typeof board.cardColors === "object" && !Array.isArray(board.cardColors));
     check(Object.entries(board.cardColors).every(([id, color]) => cards.has(id) && colors.includes(color as typeof colors[number])));
   }
   if (board.noteLayout !== undefined) {
     check(!!board.noteLayout && typeof board.noteLayout === "object" && !Array.isArray(board.noteLayout));
-    check(Object.entries(board.noteLayout).every(([id, p]) => cards.has(id) && !!p && typeof p === "object" && Number.isFinite(p.x) && p.x >= 0 && p.x <= 900 && Number.isFinite(p.y) && p.y >= 0 && p.y <= 5000 && Number.isFinite(p.angle) && Math.abs(p.angle) <= 25 && Number.isInteger(p.z) && p.z >= 0 && p.z <= 10000 && ["pin", "tape", "loose"].includes(p.attachment) && (p.fastener === undefined || (!!p.fastener && Number.isInteger(p.fastener.variant) && p.fastener.variant >= 0 && p.fastener.variant <= 4 && Number.isFinite(p.fastener.offset) && p.fastener.offset >= 15 && p.fastener.offset <= 85 && Number.isFinite(p.fastener.angle) && Math.abs(p.fastener.angle) <= 30 && Number.isFinite(p.fastener.size) && p.fastener.size >= 40 && p.fastener.size <= 110))));
+    check(Object.entries(board.noteLayout).every(([id, p]) => cards.has(id) && !!p && typeof p === "object" && Number.isFinite(p.x) && p.x >= 0 && p.x <= 1200 - (p.width || 300) && Number.isFinite(p.y) && p.y >= 0 && p.y <= 5000 && Number.isFinite(p.angle) && Math.abs(p.angle) <= 25 && Number.isInteger(p.z) && p.z >= 0 && p.z <= 10000 && ["pin", "tape", "loose"].includes(p.attachment) && ((p.width === undefined && p.height === undefined) || (id === "schedule" && validScheduleSize(p.width, p.height))) && (p.fastener === undefined || (!!p.fastener && Number.isInteger(p.fastener.variant) && p.fastener.variant >= 0 && p.fastener.variant <= 4 && Number.isFinite(p.fastener.offset) && p.fastener.offset >= 15 && p.fastener.offset <= 85 && Number.isFinite(p.fastener.angle) && Math.abs(p.fastener.angle) <= 30 && Number.isFinite(p.fastener.size) && p.fastener.size >= 40 && p.fastener.size <= 110))));
   }
   if (board.removedNotes !== undefined) check(Array.isArray(board.removedNotes) && new Set(board.removedNotes).size === board.removedNotes.length && board.removedNotes.every(id => cards.has(id)));
   check(board.order.length === cards.size && new Set(board.order).size === cards.size && board.order.every(v => cards.has(v)));
@@ -138,8 +153,13 @@ export function defaultPlacement(index: number): NotePlacement {
   const column = index % 3;
   return { x: [55, 425, 795][column], y: Math.min(4800, 60 + Math.floor(index / 3) * 480 + [15, 125, 0][column]), angle: [-3, 2.5, -1.8][column], z: index + 1, attachment: index % 2 ? "tape" : "pin" };
 }
+export function validScheduleSize(width: unknown, height: unknown): boolean {
+  return typeof width === "number" && Number.isFinite(width) && width >= 360 && width <= 900 && typeof height === "number" && Number.isFinite(height) && height >= 180 && height <= 500 && width >= height * 1.2;
+}
 export function constrainPlacement(p: NotePlacement): NotePlacement {
-  return { ...p, x: Math.max(0, Math.min(900, p.x)), y: Math.max(0, Math.min(5000, p.y)), angle: Math.max(-25, Math.min(25, p.angle)), z: Math.max(0, Math.min(10000, Math.round(p.z))) };
+  const size = p.width !== undefined || p.height !== undefined ? { width: Math.max(360, Math.min(900, p.width || 600)), height: Math.max(180, Math.min(500, p.height || 300)) } : undefined;
+  if (size) size.height = Math.min(size.height, size.width / 1.2);
+  return { ...p, ...size, x: Math.max(0, Math.min(1200 - (size?.width || 300), p.x)), y: Math.max(0, Math.min(5000, p.y)), angle: Math.max(-25, Math.min(25, p.angle)), z: Math.max(0, Math.min(10000, Math.round(p.z))) };
 }
 
 export function fastenerAppearance(p: NotePlacement): Fastener {
@@ -149,3 +169,33 @@ export function replaceFastener(p: NotePlacement, random = Math.random): NotePla
   const round = (n: number) => Math.round(n * 100) / 100;
   return { ...p, attachment: random() < .5 ? "pin" : "tape", fastener: { variant: Math.floor(random() * 5), offset: round(22 + random() * 56), angle: round(-23 + random() * 46), size: round(56 + random() * 32) } };
 }
+
+export const weekdayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+export const validTime = (value: unknown): value is string => typeof value === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
+export const summaryOptions: Record<SummaryKind, { title: string; fields: { id: string; label: string }[] }> = {
+  medications: { title: "Medication", fields: [{ id: "totals", label: "Medication and family totals" }, { id: "doses", label: "Daily doses for each person" }, { id: "refills", label: "New prescriptions needed" }, { id: "low", label: "Low stock reminders" }, { id: "supply", label: "Supply remaining" }] },
+  gifts: { title: "Presents", fields: [{ id: "totals", label: "Ideas, requested, bought and ready totals" }, { id: "spend", label: "Total planned spend" }, { id: "occasions", label: "Birthday and Christmas totals" }, { id: "ideas", label: "Recent gift ideas" }] },
+  "tasks-summary": { title: "Lists & tasks", fields: [{ id: "totals", label: "Open and completed totals" }, { id: "due", label: "Due today and overdue tasks" }, { id: "upcoming", label: "Next tasks with due dates" }] },
+  schedule: { title: "Weekly schedule", fields: [{ id: "totals", label: "This week’s activity count" }, { id: "week", label: "Activities grouped by day" }, { id: "today", label: "Today’s activities" }, { id: "people", label: "Family member names" }] },
+};
+export function summaryPreferences(board: BoardState, kind: SummaryKind): SummaryPreferences {
+  return board.summaries?.[kind] || { pinned: kind === "medications" || kind === "gifts", profileId: "", fields: kind === "schedule" ? ["totals", "week", "people"] : kind === "medications" ? ["totals", "refills", "low"] : ["totals", kind === "gifts" ? "spend" : "due"] };
+}
+export function setSummaryPreferences(board: BoardState, kind: SummaryKind, preferences: SummaryPreferences) {
+  board.summaries = { ...board.summaries, [kind]: preferences };
+  if (preferences.pinned && !board.order.includes(kind)) board.order.push(kind);
+  if (kind === "schedule" && preferences.pinned && !board.noteLayout?.schedule) board.noteLayout = { ...board.noteLayout, schedule: { x: 70, y: 620, angle: -1, z: board.order.length, attachment: "tape", width: 600, height: 300 } };
+}
+export function householdDateKey(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Sydney", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  return `${parts.find(p => p.type === "year")!.value}-${parts.find(p => p.type === "month")!.value}-${parts.find(p => p.type === "day")!.value}`;
+}
+export function weekDates(now = new Date(), offset = 0): string[] {
+  const start = new Date(`${householdDateKey(now)}T12:00:00Z`);
+  start.setUTCDate(start.getUTCDate() - (start.getUTCDay() + 6) % 7 + offset * 7);
+  return Array.from({ length: 7 }, (_, day) => { const date = new Date(start); date.setUTCDate(start.getUTCDate() + day); return date.toISOString().slice(0, 10); });
+}
+export function weeklyAgenda(activities: WeeklyActivity[], now = new Date(), offset = 0, profileId = "") {
+  return weekDates(now, offset).map((date, weekday) => ({ date, weekday, activities: activities.filter(activity => activity.weekdays.includes(weekday) && (!profileId || activity.profileIds.length === 0 || activity.profileIds.includes(profileId))).sort((a, b) => a.startTime.localeCompare(b.startTime) || a.title.localeCompare(b.title)) })).filter(day => day.activities.length > 0);
+}
+export function summaryMedicationList(board: BoardState, profileId = "") { return board.medications.filter(m => !m.archived && (!profileId || medicationHasProfile(m, profileId))); }

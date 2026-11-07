@@ -4,12 +4,12 @@ import { useCallback, useLayoutEffect, useRef, type CSSProperties, type ReactNod
 import { constrainPlacement, fastenerAppearance, replaceFastener, type NotePlacement } from "@/lib/board";
 import s from "./family-board.module.css";
 
-type Gesture = { mode: "move" | "rotate"; pointer: number; startX: number; startY: number; grabX: number; grabY: number; original: NotePlacement; active: boolean; };
-type Props = { id: string; color: string; placement: NotePlacement; front: number; disabled: boolean; palette: ReactNode; children: ReactNode; onChange: (p: NotePlacement) => Promise<boolean> };
+type Gesture = { mode: "move" | "rotate" | "resize"; pointer: number; startX: number; startY: number; grabX: number; grabY: number; original: NotePlacement; active: boolean; };
+type Props = { id: string; color: string; placement: NotePlacement; front: number; disabled: boolean; resizable?: boolean; palette: ReactNode; children: ReactNode; onChange: (p: NotePlacement) => Promise<boolean> };
 const transform = (p: NotePlacement) => `translate3d(${p.x}px, ${p.y}px, 0) rotate(${p.angle}deg)`;
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export function FreeNote({ id, color, placement, front, disabled, palette, children, onChange }: Props) {
+export function FreeNote({ id, color, placement, front, disabled, resizable = false, palette, children, onChange }: Props) {
   const note = useRef<HTMLElement>(null);
   const current = useRef(placement);
   const gesture = useRef<Gesture | null>(null);
@@ -19,10 +19,10 @@ export function FreeNote({ id, color, placement, front, disabled, palette, child
   const departing = useRef<Set<HTMLElement>>(new Set());
   const appearance = fastenerAppearance(placement);
 
-  function paint() {
-    if (note.current) note.current.style.transform = transform(current.current);
-  }
-  const { x, y, angle, z, attachment } = placement;
+  const paint = useCallback(() => {
+    if (note.current) { note.current.style.transform = transform(current.current); if (resizable) { note.current.style.width = `${current.current.width || 600}px`; note.current.style.height = `${current.current.height || 300}px`; } }
+  }, [resizable]);
+  const { x, y, angle, z, attachment, width, height } = placement;
   const { variant, offset, angle: fastenerAngle, size } = appearance;
   const layFastenerDown = useCallback(() => {
     const mount = note.current?.querySelector<HTMLElement>("[data-fastener]");
@@ -43,10 +43,10 @@ export function FreeNote({ id, color, placement, front, disabled, palette, child
   }, [attachment]);
   useLayoutEffect(() => {
     if (!gesture.current) {
-      current.current = { x, y, angle, z, attachment, fastener: { variant, offset, angle: fastenerAngle, size } };
+      current.current = { x, y, angle, z, attachment, ...(width !== undefined ? { width } : {}), ...(height !== undefined ? { height } : {}), fastener: { variant, offset, angle: fastenerAngle, size } };
       paint(); layFastenerDown();
     }
-  }, [x, y, angle, z, attachment, variant, offset, fastenerAngle, size, layFastenerDown]);
+  }, [x, y, angle, z, attachment, width, height, variant, offset, fastenerAngle, size, layFastenerDown, paint]);
   useLayoutEffect(() => {
     const debris = departing.current;
     return () => { cancelAnimationFrame(frame.current); for (const el of debris) el.remove(); debris.clear(); };
@@ -83,7 +83,7 @@ export function FreeNote({ id, color, placement, front, disabled, palette, child
   function start(event: ReactPointerEvent<HTMLElement>, mode: Gesture["mode"]) {
     if (disabled || event.button !== 0 || !event.isPrimary) return;
     const target = event.target as HTMLElement;
-    if (mode === "move" && target.closest("button,a,input,select,textarea,label,summary,details") && !target.closest("[data-note-grip]")) return;
+    if (mode === "move" && target.closest("button,a,input,select,textarea,label,summary,details,[data-note-scroll]") && !target.closest("[data-note-grip]")) return;
     const el = note.current!;
     const stage = el.parentElement!; const rect = stage.getBoundingClientRect(); const scale = rect.width / stage.offsetWidth;
     gesture.current = { mode, pointer: event.pointerId, startX: event.clientX, startY: event.clientY, grabX: (event.clientX - rect.left) / scale - current.current.x, grabY: (event.clientY - rect.top) / scale - current.current.y, original: { ...current.current }, active: false };
@@ -103,6 +103,12 @@ export function FreeNote({ id, color, placement, front, disabled, palette, child
       current.current = constrainPlacement({ ...g.original, x: (event.clientX - rect.left) / scale - g.grabX, y: (event.clientY - rect.top) / scale - g.grabY, z: front });
       const viewport = stage.closest<HTMLElement>("[data-board-viewport]");
       if (viewport) { const bounds = viewport.getBoundingClientRect(); if (event.clientY > bounds.bottom - 35) viewport.scrollTop += 10; else if (event.clientY < bounds.top + 35) viewport.scrollTop -= 10; if (event.clientX > bounds.right - 35) viewport.scrollLeft += 8; else if (event.clientX < bounds.left + 35) viewport.scrollLeft -= 8; }
+    } else if (g.mode === "resize") {
+      const stage = el.parentElement!; const scale = stage.getBoundingClientRect().width / stage.offsetWidth;
+      const angle = g.original.angle * Math.PI / 180;
+      const localX = (dx * Math.cos(angle) + dy * Math.sin(angle)) / scale;
+      const localY = (-dx * Math.sin(angle) + dy * Math.cos(angle)) / scale;
+      current.current = constrainPlacement({ ...g.original, width: (g.original.width || 600) + localX, height: (g.original.height || 300) + localY, z: front });
     } else if (g.mode === "rotate") {
       current.current = constrainPlacement({ ...g.original, angle: g.original.angle + dx / 4, z: front });
     }
@@ -137,7 +143,7 @@ export function FreeNote({ id, color, placement, front, disabled, palette, child
     void onChange(current.current).then(ok => { if (!ok) { current.current = original; paint(); } });
   }
   const fastenerStyle = { left: `${appearance.offset}%`, transform: `rotate(${appearance.angle}deg)`, "--tape-width": `${appearance.size}px` } as CSSProperties;
-  return <article ref={note} data-card-id={id} data-attachment={placement.attachment} className={`${s.paper} ${s.freeNote} ${s[color]}`} style={{ transform: transform(placement), zIndex: placement.z }}
+  return <article ref={note} data-card-id={id} data-attachment={placement.attachment} className={`${s.paper} ${s.freeNote} ${s[color]} ${resizable ? s.schedulePaper : ""}`} style={{ transform: transform(placement), zIndex: placement.z, ...(resizable ? { width: placement.width || 600, height: placement.height || 300 } : {}) }}
     onPointerDown={event => start(event, "move")} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={() => { if (gesture.current) cancel(); }}
     onClickCapture={event => { if (suppressClick.current) { event.preventDefault(); event.stopPropagation(); suppressClick.current = false; } }}>
     {placement.attachment === "pin" && <span data-fastener data-variant={appearance.variant} className={s.realPin} style={fastenerStyle} aria-hidden="true"><span/></span>}
@@ -146,7 +152,14 @@ export function FreeNote({ id, color, placement, front, disabled, palette, child
       <button type="button" data-note-grip className={s.noteGrip} disabled={disabled} aria-label="Move note. Drag freely or use arrow keys" title="Drag anywhere · Arrow keys move · Shift for fine movement" onKeyDown={keyboard}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01" strokeWidth="4"/></svg></button>
       <div>{palette}</div>
     </div>
-    {children}
+    {resizable ? <div className={s.scheduleNoteBody} data-note-scroll>{children}</div> : children}
+    {resizable && <button type="button" className={s.resizeNote} aria-label="Resize schedule note" title="Drag to resize · Arrow keys adjust size · Shift for fine adjustments" disabled={disabled} onPointerDown={event => start(event, "resize")} onKeyDown={event => {
+      if (disabled) return;
+      const step = event.shiftKey ? 2 : 20; const delta = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
+      if (!delta) return; event.preventDefault(); const original = current.current;
+      current.current = constrainPlacement({ ...original, width: (original.width || 600) + delta[0], height: (original.height || 300) + delta[1], z: front }); paint();
+      void onChange(current.current).then(ok => { if (!ok) { current.current = original; paint(); } });
+    }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M9 21 21 9M15 21l6-6"/></svg></button>}
     <button className={s.rotateNote} aria-label="Rotate note" title="Drag to rotate · Enter to turn 5 degrees" disabled={disabled} onPointerDown={event => start(event, "rotate")} onClick={event => { if (event.detail === 0) (() => { releaseFastener(); pendingDrop.current = true; void onChange(replaceFastener(constrainPlacement({ ...placement, angle: placement.angle >= 20 ? -20 : placement.angle + 5 }))); })(); }}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10a8 8 0 1 0-2 8M20 4v6h-6"/></svg></button>
   </article>;
 }

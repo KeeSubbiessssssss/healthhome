@@ -31,3 +31,13 @@ Fasteners are consequences of moving paper, never click-to-apply controls. At th
 ## Removed paper tray
 
 The user removed the paper tray because the current board notes are app modules. All existing notes are visible, including notes marked hidden by older snapshots. There is no tear-off/archive gesture or tray UI. Automatic pin falling, tape peeling, random replacement fasteners and free movement remain. Legacy removedNotes metadata stays readable for compatibility but is ignored by the UI.
+
+## Components
+
+### Weekly schedule and configurable summaries
+
+Extend the existing vibrant scrapbook palette, handwritten headings and paper folder navigation. Weekly schedule uses seven slim day columns with family-coloured activity slips, readable times and a lime Today marker. Columns scroll horizontally on small screens; there is no empty hourly grid or week navigation. The compact activity editor contains only the title, people/pets, weekdays, start time and optional end time; a new activity takes its first assigned profile’s colour, or blue for everyone.
+
+The schedule summary is a landscape itinerary slip with a coral top edge, folded corner and the board’s automatic pin or tape. Start at (600 × 300) canvas units; a corner handle supports pointer resizing and keyboard arrows, with Shift for fine adjustment. Constrain width to (360–900), height to (180–500), and width/height to at least (1.2). Keep the full width within the (1200)-unit board. Its contents scroll inside the paper without starting a move; free movement, rotation and automatic fastener behaviour remain shared with other notes.
+
+Medication, Weekly schedule, Lists & tasks and Presents summaries share an options editor for visible details, a household/profile filter and pin visibility. Hiding a summary preserves its layout and schedule dimensions for repinning; this explicit summary preference is separate from ignored legacy removed-note metadata. Keep options in two columns on wide screens and one on small screens, using the existing form controls and paper treatment.
