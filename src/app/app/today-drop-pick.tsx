@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { dailyDropPick, dropPickByLabel, dropPickProfileIds, householdDateKey, setDropPickOverride, summaryPreferences, type BoardState, type DropPick } from "@/lib/board";
-import { DropPickFields } from "./drop-pick-settings";
+import { householdDateKey, summaryPreferences, type BoardState, type SchoolJourney } from "@/lib/board";
+import { schoolBy, schoolChildren, schoolName, schoolTrip, schoolTripFromChoice, setSchoolDayOverride, restoreSchoolDay } from "@/lib/school-travel";
+import { SchoolTransportSelect } from "./school-travel";
 import type { BoardCommit } from "./schedule";
 import s from "./family-board.module.css";
 
@@ -17,35 +18,27 @@ export function TodayDropPick(props: { state: BoardState; busy: boolean; commit:
   return <DailyDropPick key={date} {...props} date={date}/>;
 }
 function DailyDropPick({ state, busy, commit, onOpen, date }: { state: BoardState; busy: boolean; commit: BoardCommit; onOpen: () => void; date: string }) {
-  const [editing, setEditing] = useState<string | null>(null);
-  const entries = dailyDropPick(state, date, summaryPreferences(state, "drop-pick").profileId);
-  const current = entries.find(item => item.source.id === editing);
-  const people = state.profiles.filter(profile => profile.kind === "person");
-  const names = (entry: DropPick) => dropPickProfileIds(entry).map(id => state.profiles.find(profile => profile.id === id)?.name || "Unknown").join(" & ");
-  async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!current) return;
-    const data = new FormData(event.currentTarget);
-    const profileIds = data.getAll("profileId").map(String); const by = String(data.get("by") || "");
-    const replacement: DropPick = { id: current.source.id, profileId: profileIds[0] || "", profileIds, note: String(data.get("note") || "").trim(), byProfileId: by.startsWith("person:") ? by.slice(7) : "", ...(by === "bus" ? { transport: "bus" } : {}), weekdays: current.source.weekdays };
-    const ok = await commit(draft => {
-      if (householdDateKey() !== date) throw new Error("The day has changed. Reopen today’s arrangement and try again.");
-      if (!profileIds.length) throw new Error("Choose at least one family member.");
-      setDropPickOverride(draft, current.source.id, date, replacement);
-    }, "Drop/Pick changed for today only.");
-    if (ok) setEditing(null);
+  const [editing, setEditing] = useState<{profileId:string;journey:SchoolJourney}|null>(null);
+  const weekday=(new Date(date+"T12:00:00Z").getUTCDay()+6)%7;
+  const profileId=summaryPreferences(state,"drop-pick").profileId;
+  const children=schoolChildren(state).filter(child=>!profileId||child.id===profileId||["to-school","pickup"].some(journey=>schoolTrip(state,child.id,weekday,journey as SchoolJourney,date).trip.byProfileId===profileId));
+  const child=children.find(child=>child.id===editing?.profileId);
+  const current=editing?schoolTrip(state,editing.profileId,weekday,editing.journey,date):null;
+  const people=state.profiles.filter(person=>person.kind==="person");
+  const label=(journey:SchoolJourney)=>journey==="to-school"?"To school":"Pickup";
+  async function change(trip:ReturnType<typeof schoolTripFromChoice>|null){
+    if(!editing)return;
+    const ok=await commit(draft=>{if(householdDateKey()!==date)throw new Error("The day changed. Reopen today’s arrangement and try again.");setSchoolDayOverride(draft,editing.profileId,editing.journey,date,trip);},trip?"School travel changed for today only.":"School trip skipped for today only.");
+    if(ok)setEditing(null);
   }
-  function restore(entryId: string) {
-    void commit(draft => { draft.dropPickOverrides = draft.dropPickOverrides?.filter(item => item.entryId !== entryId || item.date !== date); }, "Today’s weekly arrangement restored.").then(ok => { if (ok) setEditing(null); });
-  }
+  function save(event:FormEvent<HTMLFormElement>){event.preventDefault();const data=new FormData(event.currentTarget);void change(schoolTripFromChoice(String(data.get("by")||""),String(data.get("detail")||"")));}
   return <div className={s.todayDropPick} data-note-scroll>
-    <p className={s.todayDate}>{new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Sydney", weekday: "long", day: "numeric", month: "short" }).format(new Date(date + "T01:00:00Z"))}</p>
-    {!entries.length && <p>No Drop/Pick arrangements today.</p>}
-    <ul>{entries.map(item => <li key={item.source.id} className={item.skipped ? s.skippedDropPick : undefined}>
-      <div className={s.todayPeople}>{dropPickProfileIds(item.entry).map(id => { const person = state.profiles.find(profile => profile.id === id); return <span key={id}><i className={`${s.profileDot} ${s[person?.color || "cream"]}`}/><strong>{person?.name}</strong></span>; })}</div>
-      <span>{item.entry.note}</span><small>{item.skipped ? "Skipped today" : `By ${dropPickByLabel(item.entry, state.profiles)}`}{item.changed && !item.skipped && " · Changed today"}</small>
-      <div className={s.todayActions}>{!item.skipped && <><button className={s.textButton} disabled={busy} onClick={() => setEditing(item.source.id)} aria-label={`Change today’s Drop/Pick for ${names(item.entry)}: ${item.entry.note}`}>Change today</button><button className={s.textButton} disabled={busy} onClick={() => void commit(draft => setDropPickOverride(draft, item.source.id, date, null), "Drop/Pick skipped for today only.")}>Skip today</button></>}{item.changed && <button className={s.textButton} disabled={busy} onClick={() => restore(item.source.id)}>Use weekly plan</button>}</div>
-    </li>)}</ul>
-    {current && <form key={editing} className={s.todayEditor} onSubmit={save}><h3>Change for today</h3><p>Only {date}. The weekly plan stays the same.</p><fieldset className={s.formFields} disabled={busy}><DropPickFields entry={current.entry} people={people} showWeekdays={false}/><div className={s.formActions}><button type="submit" className={s.primary}>Save for today</button><button type="button" className={s.textButton} onClick={() => setEditing(null)}>Cancel</button></div></fieldset></form>}
+    <p className={s.todayDate}>{new Intl.DateTimeFormat("en-AU",{timeZone:"Australia/Sydney",weekday:"long",day:"numeric",month:"short"}).format(new Date(date+"T01:00:00Z"))}</p>
+    {weekday>=5?<p>No school travel scheduled today.</p>:!children.length?<p>Choose the children in the weekly school travel planner.</p>:<ul>{children.map(child=><li key={child.id}>
+      <div className={s.todayPeople}><span><i className={`${s.profileDot} ${s[child.color]}`}/><strong>{schoolName(child)}</strong></span></div>
+      {(["to-school","pickup"] as const).map(journey=>{const result=schoolTrip(state,child.id,weekday,journey,date);return <div className={s.todaySchoolTrip} key={journey}><div><span>{label(journey)}</span><strong className={!result.trip.byProfileId&&!result.trip.transport&&!result.skipped?s.schoolUnset:undefined}>{result.skipped?"Skipped today":schoolBy(result.trip,state.profiles)}</strong>{result.changed&&!result.skipped&&<small>Changed today</small>}</div><button className={s.textButton} disabled={busy} onClick={()=>setEditing({profileId:child.id,journey})} aria-label={`Change ${schoolName(child)} ${label(journey).toLowerCase()} for today`}>Change</button></div>;})}
+    </li>)}</ul>}
+    {editing&&current&&child&&<form key={`${editing.profileId}:${editing.journey}`} className={s.todayEditor} onSubmit={save}><h3>{schoolName(child)} · {label(editing.journey)}</h3><p>Today only. The weekly plan stays the same.</p><fieldset className={s.formFields} disabled={busy}><SchoolTransportSelect trip={current.trip} people={people} name="by" label="How / with whom"/><label className={s.field}>Detail (optional)<input name="detail" maxLength={200} defaultValue={current.trip.detail||""}/></label><div className={s.formActions}><button type="submit" className={s.primary}>Save for today</button><button type="button" className={s.textButton} onClick={()=>void change(null)}>Skip today</button>{current.changed&&<button type="button" className={s.textButton} onClick={()=>void commit(draft=>restoreSchoolDay(draft,editing.profileId,editing.journey,date),"Weekly school arrangement restored.").then(ok=>{if(ok)setEditing(null);})}>Use weekly plan</button>}<button type="button" className={s.textButton} onClick={()=>setEditing(null)}>Cancel</button></div></fieldset></form>}
     <button className={s.noteLink} onClick={onOpen}>Open weekly schedule</button>
   </div>;
 }

@@ -742,3 +742,37 @@
 @media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) {
   .canvasWorkstation[data-reading=true] .todayDropPick { max-height: none; overflow: visible; }
 }
+
+.schoolPlanner { padding: 20px; }
+.schoolPlanner > h2 { font: 30px var(--font-handwriting), cursive; margin: 0 0 8px; }
+.schoolPlanner > p, .earlierSchoolEntries > p { font-size: 13px; line-height: 1.5; }
+.schoolChildren > summary, .earlierSchoolEntries > summary, .schoolDetails > summary { min-height: 44px; padding: 10px 0; cursor: pointer; font-size: 12px; }
+.schoolDayTabs { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 6px; margin: 16px 0; }
+.schoolDayTabs > button { min-height: 44px; border: 0; background: #cdeee5; color: #25274d; font-size: 14px; border-radius: 3px; }
+.schoolDayTabs > button[aria-pressed=true] { background: #3d3588; color: #fffdf5; font-weight: 700; }
+.schoolPlanner form > h3 { font: 28px var(--font-handwriting), cursive; margin: 0 0 12px; }
+.schoolDayFields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.schoolChildRow { display: grid; grid-template-columns: minmax(90px,.7fr) repeat(2,minmax(0,1fr)); gap: 12px 18px; padding: 16px 0; border-top: 1px dashed #8fb8b5; min-width: 0; }
+.schoolChildRow > h4 { display: flex; align-items: center; gap: 7px; margin: 0; font: 24px var(--font-handwriting), cursive; }
+.schoolChildRow select { font-size: 16px; min-height: 48px; }
+.schoolDetails { grid-column: 2 / -1; }
+.schoolDetails .field { margin-bottom: 12px; }
+.schoolConflict { grid-column: 1/-1; font-size: 12px; color: #8c2840; }
+.schoolDayFields > .formActions { margin-top: 16px; flex-wrap: wrap; }
+.earlierSchoolEntries { margin-top: 20px; border-top: 1px dashed #8fb8b5; }
+.schoolDayChild { display: flex; flex-direction: column; gap: 3px; padding: 8px 0; font-size: 11px; line-height: 1.4; }
+.schoolDayChild + .schoolDayChild { border-top: 1px dashed #64792750; }
+.schoolDayChild > strong { display: flex; align-items: center; gap: 5px; }
+.todaySchoolTrip { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.todaySchoolTrip > div { display: flex; flex-wrap: wrap; gap: 3px 8px; align-items: baseline; }
+.todaySchoolTrip small { flex-basis: 100%; }
+.todaySchoolTrip button { flex-shrink: 0; }
+.schoolUnset { background: #fffdf5; color: #8c2840; padding: 1px 6px; border-radius: 2px; }
+@media(max-width:760px), (max-width:1000px) and (max-height:500px) {
+  .schoolPlanner { padding: 16px; }
+  .schoolChildRow { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .schoolChildRow > h4, .schoolDetails { grid-column: 1 / -1; }
+  .schoolChildRow .field { font-size: 12px; }
+  .schoolChildRow select { padding-left: 8px; padding-right: 28px; background-position: right 8px center; }
+  .schoolDayChild { font-size: 12px; }
+}

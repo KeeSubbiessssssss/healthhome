@@ -7,6 +7,10 @@ export type DoseLog = { id: string; occurredAt: string; units: number; note: str
 export type StockChange = { id: string; occurredAt: string; action: "consume" | "replenish" | "correct" | "repeat"; before: number; after: number; note: string };
 export type MedicationRegimen = { profileId: string; unitsPerDose: number; dosesPerDay: number; doseTiming: string; instructions: string };
 export type Medication = { id: string; profileId: string; regimens?: MedicationRegimen[]; name: string; strength: string; instructions: string; doseTiming?: string; stockChanges?: StockChange[]; expiresOn?: string; unit: string; unitsLeft: number; unitsPerDose: number; dosesPerDay: number; refillAt: number; unitsPerRefill: number; repeats: number; logs: DoseLog[]; archived: boolean };
+export type SchoolJourney = "to-school" | "pickup";
+export type SchoolTrip = { byProfileId: string; transport?: "bus"; detail?: string };
+export type SchoolTravelDay = { profileId: string; weekday: number; toSchool: SchoolTrip; pickup: SchoolTrip };
+export type SchoolTravelOverride = { id: string; profileId: string; journey: SchoolJourney; date: string; trip: SchoolTrip | null; useWeekly?: true };
 export type DropPick = { id: string; profileId: string; profileIds?: string[]; note: string; byProfileId: string; transport?: "bus"; weekdays: number[] };
 export type WeeklyActivity = { id: string; title: string; profileIds: string[]; weekdays: number[]; startTime: string; endTime: string; color: string };
 export type DropPickOverride = { id: string; entryId: string; date: string; replacement: DropPick | null };
@@ -14,7 +18,7 @@ export type SummaryKind = "medications" | "gifts" | "tasks-summary" | "schedule"
 export type SummaryPreferences = { pinned: boolean; fields: string[]; profileId: string };
 export type Fastener = { variant: number; offset: number; angle: number; size: number };
 export type NotePlacement = { width?: number; height?: number; fastener?: Fastener; x: number; y: number; angle: number; z: number; attachment: "pin" | "tape" | "loose" };
-export type BoardState = { schemaVersion: 1; dropPick?: DropPick[]; dropPickOverrides?: DropPickOverride[]; activities?: WeeklyActivity[]; summaries?: Partial<Record<SummaryKind, SummaryPreferences>>; profiles: Profile[]; lists: TaskList[]; gifts: Gift[]; medications: Medication[]; order: string[]; cardColors?: Record<string, string>; noteLayout?: Record<string, NotePlacement>; removedNotes?: string[] };
+export type BoardState = { schemaVersion: 1; schoolTravel?: { profileIds: string[]; days: SchoolTravelDay[] }; schoolTravelOverrides?: SchoolTravelOverride[]; dropPick?: DropPick[]; dropPickOverrides?: DropPickOverride[]; activities?: WeeklyActivity[]; summaries?: Partial<Record<SummaryKind, SummaryPreferences>>; profiles: Profile[]; lists: TaskList[]; gifts: Gift[]; medications: Medication[]; order: string[]; cardColors?: Record<string, string>; noteLayout?: Record<string, NotePlacement>; removedNotes?: string[] };
 export const colors = ["butter", "sage", "rose", "blue", "cream", "peach", "mint", "lavender", "lilac", "coral", "lemon", "teal", "sand", "terracotta", "periwinkle"] as const;
 export const emptyBoard = (): BoardState => ({ schemaVersion: 1, profiles: [], lists: [], gifts: [], medications: [], order: ["welcome", "medications", "gifts"] });
 export const dropPickProfileIds = (entry: DropPick): string[] => entry.profileIds ?? [entry.profileId];
@@ -72,6 +76,20 @@ export function parseBoard(value: unknown): BoardState {
     for (const log of m.logs) { id(log.id); check(number(log.units) && log.units > 0 && typeof log.occurredAt === "string" && !Number.isNaN(Date.parse(log.occurredAt)) && text(log.note) && typeof log.reversed === "boolean" && (log.tracksStock === undefined || typeof log.tracksStock === "boolean") && (log.profileId === undefined || text(log.profileId))); }
   }
   const person = (id: string) => board.profiles.some(p => p.id === id && p.kind === "person");
+  const checkSchoolTrip = (trip: SchoolTrip) => check(!!trip && (trip.byProfileId === "" || person(trip.byProfileId)) && (trip.transport === undefined || (trip.transport === "bus" && trip.byProfileId === "")) && (trip.detail === undefined || (text(trip.detail) && trip.detail.length <= 200)));
+  if (board.schoolTravel !== undefined) {
+    const plan = board.schoolTravel;
+    check(!!plan && Array.isArray(plan.profileIds) && plan.profileIds.length <= 100 && new Set(plan.profileIds).size === plan.profileIds.length && plan.profileIds.every(person) && Array.isArray(plan.days) && plan.days.length <= 500);
+    const cells = new Set<string>();
+    for (const day of plan.days) { const key = `${day.profileId}:${day.weekday}`; check(person(day.profileId) && Number.isInteger(day.weekday) && day.weekday >= 0 && day.weekday < 5 && !cells.has(key)); cells.add(key); checkSchoolTrip(day.toSchool); checkSchoolTrip(day.pickup); }
+  }
+  if (board.schoolTravelOverrides !== undefined) {
+    check(Array.isArray(board.schoolTravelOverrides) && board.schoolTravelOverrides.length <= 3000);
+    const cells = new Set<string>();
+    for (const item of board.schoolTravelOverrides) { id(item.id); const key = `${item.profileId}:${item.date}:${item.journey}`;
+      check(person(item.profileId) && ["to-school", "pickup"].includes(item.journey) && typeof item.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(item.date) && !Number.isNaN(Date.parse(item.date)) && new Date(item.date + "T12:00:00Z").toISOString().slice(0,10) === item.date && !cells.has(key) && (item.useWeekly === undefined || (item.useWeekly === true && item.trip !== null))); cells.add(key); if (item.trip !== null) checkSchoolTrip(item.trip);
+    }
+  }
   const checkDropPick = (entry: DropPick) => {
     check(!!entry && person(entry.profileId) && (entry.byProfileId === "" || person(entry.byProfileId)) && (entry.transport === undefined || (entry.transport === "bus" && entry.byProfileId === "")) && (entry.profileIds === undefined || (Array.isArray(entry.profileIds) && entry.profileIds.length > 0 && entry.profileIds.length <= 100 && new Set(entry.profileIds).size === entry.profileIds.length && entry.profileIds.every(person) && entry.profileId === entry.profileIds[0])) && text(entry.note, true) && entry.note.length <= 200 && Array.isArray(entry.weekdays) && entry.weekdays.length > 0 && entry.weekdays.length <= 5 && new Set(entry.weekdays).size === entry.weekdays.length && entry.weekdays.every(d => Number.isInteger(d) && d >= 0 && d <= 4));
   };

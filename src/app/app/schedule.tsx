@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, useState, useLayoutEffect, type ReactNode, type FormEvent } from "react";
-import { householdDateKey, newId, dropPickProfileIds, dropPickByLabel, weekDates, weekdayNames, weeklyAgenda, type BoardState, type WeeklyActivity } from "@/lib/board";
+import { householdDateKey, newId, weekDates, weekdayNames, weeklyAgenda, type BoardState, type WeeklyActivity } from "@/lib/board";
 import { activityGroups, timedActivityLayout } from "@/lib/schedule-layout";
 import s from "./family-board.module.css";
-import { DropPickSettings } from "./drop-pick-settings";
+import { SchoolTravelSettings, SchoolDayNotes } from "./school-travel";
 
 export type BoardCommit = (change: (draft: BoardState) => void, message?: string) => Promise<boolean>;
 export const clockLabel = (time: string) => { const [hour, minute] = time.split(":").map(Number); return `${hour % 12 || 12}:${String(minute).padStart(2, "0")}${hour >= 12 ? "pm" : "am"}`; };
@@ -22,7 +22,7 @@ export function AgendaTiles({ state, offset = 0, profileId = "", compact = false
   </>;
   return <div className={`${s.agenda} ${compact ? s.compactAgenda : ""}`} style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(192px, 1fr))` }}>{layout.map(day => <section className={s.agendaDay} key={day.date}>
     <h3>{weekdayNames[day.weekday].slice(0, 3)}{day.date === today && <small>Today</small>}</h3>
-    {day.weekday < 5 && <DropPickNotes state={state} weekday={day.weekday} profileId={profileId}/>}
+    {day.weekday < 5 && <SchoolDayNotes state={state} weekday={day.weekday} profileId={profileId}/>}
     <div className={s.agendaTiles}>{day.groups.map((lanes, index) => lanes.length > 1 ? <TimedActivities key={index} lanes={lanes} renderTile={tile}/> : lanes[0].map(activity => <article key={activity.id} className={`${s.activityTile} ${s[activity.color]}`}>{tile(activity)}</article>))}</div>
   </section>)}</div>;
 }
@@ -52,6 +52,7 @@ function TimedActivities({ lanes, renderTile }: { lanes: WeeklyActivity[][]; ren
 
 export function WeeklySchedule({ state, profileId, busy, commit, onPin, onOptions, pinned, initialEditing = null }: { state: BoardState; profileId: string; busy: boolean; commit: BoardCommit; onPin: () => void; onOptions: () => void; pinned: boolean; initialEditing?: string | null }) {
   const [editing, setEditing] = useState<string | null>(initialEditing);
+  const [schoolExpanded, setSchoolExpanded] = useState(!initialEditing && !state.schoolTravel?.days.length);
   const formRef = useRef<HTMLFormElement>(null);
   const activity = state.activities?.find(a => a.id === editing);
   const start = (id: string) => { setEditing(id); requestAnimationFrame(() => formRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })); };
@@ -67,7 +68,7 @@ export function WeeklySchedule({ state, profileId, busy, commit, onPin, onOption
   }
   return <>
     <div className={s.viewToolbar}><p>The regular things, with room around them.</p><div className={s.scheduleActions}><button className={s.secondary} disabled={busy} onClick={pinned ? onOptions : onPin}>{pinned ? "Summary options" : "Pin schedule summary"}</button><button className={s.primary} disabled={busy} onClick={() => start("new")}>Add weekly activity</button></div></div>
-    <details className={s.dropPickControl}><summary>Manage Drop/Pick</summary><DropPickSettings state={state} busy={busy} commit={commit}/></details>
+    <details className={s.dropPickControl} open={schoolExpanded} onToggle={event => setSchoolExpanded(event.currentTarget.open)}><summary>School travel · To school & pickup</summary><SchoolTravelSettings state={state} busy={busy} commit={commit}/></details>
     {editing !== null && <form ref={formRef} key={editing} className={s.editor} onSubmit={save}><header><h2>{activity ? "Edit weekly activity" : "A regular little plan"}</h2><button type="button" className={s.textButton} onClick={() => setEditing(null)}>Close</button></header><fieldset className={s.formFields} disabled={busy}>
       <label className={s.field}>Activity<input name="title" defaultValue={activity?.title} maxLength={500} required placeholder="Swimming, school run, family dinner…"/></label>
       <label className={s.field}>Starts<input name="startTime" type="time" defaultValue={activity?.startTime || "09:00"} required/></label>
@@ -79,13 +80,4 @@ export function WeeklySchedule({ state, profileId, busy, commit, onPin, onOption
     <div className={s.weekNavigation}><div><h2>Every week</h2><span>Weekly recurring activities</span></div></div>
     <AgendaTiles state={state} profileId={profileId} onEdit={start} onRemove={id => { const item = state.activities?.find(a => a.id === id); if (item && !busy && window.confirm(`Remove “${item.title}” from every week?`)) void commit(d => { d.activities = d.activities?.filter(a => a.id !== id); }, "Weekly activity removed."); }}/>
   </>;
-}
-
-function DropPickNotes({ state, weekday, profileId }: { state: BoardState; weekday: number; profileId: string }) {
-  const entries = (state.dropPick || []).filter(entry => entry.weekdays.includes(weekday) && (!profileId || dropPickProfileIds(entry).includes(profileId) || entry.byProfileId === profileId));
-  return <div className={s.dropPickDay}><h4>Drop/Pick</h4>{entries.map(entry => {
-    const people = dropPickProfileIds(entry).map(id => state.profiles.find(p => p.id === id));
-    const by = state.profiles.find(p => p.id === entry.byProfileId);
-    return <div className={s.dropPickNote} key={entry.id}><div>{people.map(person => <span className={s.dropPickPerson} key={person?.id}><span className={`${s.profileDot} ${s[person?.color || "cream"]}`}/><strong>{person?.name}</strong></span>)}<span>{entry.note}</span></div><small>By {by && <span className={`${s.profileDot} ${s[by.color]}`}/>}<strong>{dropPickByLabel(entry, state.profiles)}</strong></small></div>;
-  })}{!entries.length && <span className={s.dropPickBlank}>—</span>}</div>;
 }

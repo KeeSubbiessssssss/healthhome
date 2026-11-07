@@ -53,3 +53,9 @@ Full weekly schedules flow down the phone screen, keeping all seven weekdays and
 ## Today’s Drop/Pick
 
 A separate lemon-paper note leads the phone pinboard and is pinned by default. It shows only the current Sydney day’s Drop/Pick arrangements, supports grouped family names and Bus transport, and refreshes its day at midnight or when the tab becomes visible. Change today and Skip today save dated exceptions; Use weekly plan removes that date’s exception. Weekly entries are never edited by these actions. The note shares the existing summary visibility/profile filter, colour, free movement and automatic fasteners. Old snapshots remain valid without daily-note metadata or dated exceptions.
+
+## Structured school travel (supersedes free-entry setup)
+
+Weekly schedule now opens a Monday–Friday school planner for Ace, Rhythm and Ezzie (using Esme’s existing profile, with no global rename). Every child has separate To school and Pickup choices, using a family member, Bus or Not set. A weekday can be saved alone or copied across Mon–Fri. Child selection and optional details are secondary; earlier free entries remain available for review. Unambiguous earlier drop-off/pickup records prefill unsaved cells; conflicting or unclear records are never guessed or deleted.
+
+The daily pinboard note follows the same child-by-child layout and marks missing arrangements. One-off changes and skipping now apply to one child and one journey, preserving siblings even if the old trip was grouped. Use weekly plan restores the current weekly rule. Structured plans and dated exceptions are additive optional board snapshot fields, preserving earlier records and exceptions.
