@@ -312,3 +312,22 @@
 .segmented button { background: #cdeee5; color: #294e5b; }.segmented button[aria-pressed=true] { background: #3d3588; color: #fffdf5; }.profileFilters > button { background: #fffef6; color: #294e5b; }.profileFilters > button[aria-pressed=true] { background: #3d3588; color: #fffdf5; }.profileFilters > button:hover:not([aria-pressed=true]) { background: #e9ff64; }
 .field input, .field select, .field textarea { border-color: #8fb8b5; }.field input:focus, .field select:focus, .field textarea:focus { border-color: #dc4d2e; }.giftLinkEditor { border-color: #8fb8b5; }
 .addNote { background: #dfff6830; border-color: #328b88; color: #294e5b; }.addNote > span { background: #ff8965; color: #3d2440; }.addNote:hover { background: #e9ff64; }
+
+/* The pinboard fills the workspace, right up to the navigation and window edges. */
+.boardMain { max-width: none; padding: 0; height: 100dvh; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+.boardMain > .topbar { padding-inline: 24px; flex-shrink: 0; }
+.boardMain > .feedback { position: absolute; top: 82px; right: 16px; min-height: 0; z-index: 20; pointer-events: none; }
+.boardMain > .footer { display: none; }
+.boardMain > .editor { margin: 16px 24px; flex-shrink: 0; max-height: 60dvh; overflow-y: auto; }
+.boardMain > .error { margin: 12px 24px; flex-shrink: 0; }
+.boardMain .canvasWorkstation { margin: 0; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.boardMain .canvasDock { border-radius: 0; flex-shrink: 0; }
+.boardMain .canvasViewport { flex: 1; height: auto; min-height: 0; border: 0; border-radius: 0; }
+@media(max-width: 760px) {
+  .boardShell { height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .boardShell > .sidebar { flex-shrink: 0; }
+  .boardMain { flex: 1; height: auto; min-height: 0; }
+  .boardMain > .topbar { padding-inline: 20px; }
+  .boardMain > .feedback { top: 71px; }
+  .boardMain > .editor { margin-inline: 16px; }
+}
