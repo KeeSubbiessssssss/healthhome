@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { emptyBoard, adjustInventory, medicationSupplyStatus, totalDailyDose, dailyDoseLabel, defaultPlacement, constrainPlacement, replaceFastener, fastenerAppearance, fillRepeat, logDose, moveCard, parseBoard, productLink, linksForGift, occasionsForGift, giftIsBought, undoDose } from '../src/lib/board.ts';
+import { emptyBoard, adjustInventory, medicationSupplyStatus, medicationRegimens, medicationHasProfile, medicationBackground, totalDailyDose, dailyDoseLabel, defaultPlacement, constrainPlacement, replaceFastener, fastenerAppearance, fillRepeat, logDose, moveCard, parseBoard, productLink, linksForGift, occasionsForGift, giftIsBought, undoDose } from '../src/lib/board.ts';
 const medication = () => ({ id: 'med', profileId: 'pet', name: 'Test medication', strength: '', instructions: '', unit: 'mL', unitsLeft: 2, unitsPerDose: .3, dosesPerDay: 1, refillAt: .5, unitsPerRefill: 10, repeats: 2, logs: [], archived: false });
 const board = () => ({ ...emptyBoard(), profiles: [{ id: 'pet', name: 'Test pet', kind: 'pet', birthday: '', species: 'Dog', color: 'sage' }], medications: [medication()] });
 test('people and pets can own medications without login identities', () => {
@@ -207,4 +207,53 @@ test('ordinary stock warnings stay quiet, with prescription warnings taking prio
  assert.deepEqual(medicationSupplyStatus({ ...medication(), dosesPerDay: 0, repeats: 0 }), { kind: null, daysLeft: null });
  assert.equal(medicationSupplyStatus({ ...medication(), dosesPerDay: 0, unitsLeft: .1, repeats: 0 }).kind, 'low');
  assert.equal(medicationSupplyStatus({ ...medication(), dosesPerDay: 0, unitsLeft: 0, repeats: 0 }).kind, 'prescription');
+});
+
+const sharedMedication = () => ({ ...medication(), strength: '75mg', unit: 'tablets', profileId: 'pet', unitsPerDose: 3, dosesPerDay: 1, instructions: 'With breakfast', doseTiming: 'Morning', unitsLeft: 60, regimens: [
+ { profileId: 'pet', unitsPerDose: 3, dosesPerDay: 1, instructions: 'With breakfast', doseTiming: 'Morning' },
+ { profileId: 'person', unitsPerDose: 1, dosesPerDay: 2, instructions: 'With food', doseTiming: 'Morning and evening' }
+] });
+const sharedBoard = () => ({ ...board(), profiles: [...board().profiles, { id: 'person', name: 'Test person', kind: 'person', birthday: '', species: '', color: 'rose' }], medications: [sharedMedication()] });
+test('shared medications preserve independent schedules and legacy single-person schedules', () => {
+ const state = parseBoard(JSON.parse(JSON.stringify(sharedBoard()))); const med = state.medications[0];
+ assert.equal(medicationRegimens(med).length, 2);
+ assert.equal(dailyDoseLabel({ ...med, ...med.regimens[0] }), '225 mg daily');
+ assert.equal(dailyDoseLabel({ ...med, ...med.regimens[1] }), '150 mg daily');
+ assert.equal(med.regimens[1].doseTiming, 'Morning and evening');
+ assert.equal(med.regimens[0].instructions, 'With breakfast');
+ assert.equal(medicationHasProfile(med, 'person'), true);
+ assert.equal(medicationHasProfile(med, 'other'), false);
+ assert.equal(medicationRegimens(medication())[0].profileId, 'pet');
+});
+test('shared inventory estimates and prescription warnings include all assigned schedules', () => {
+ const med = { ...sharedMedication(), repeats: 0 };
+ assert.deepEqual(medicationSupplyStatus(med), { kind: 'prescription', daysLeft: 12 });
+ assert.equal(medicationSupplyStatus({ ...med, unitsLeft: 61 }).kind, null);
+ assert.equal(medicationSupplyStatus({ ...med, regimens: [{ ...med.regimens[0], dosesPerDay: 0 }, med.regimens[1]] }).daysLeft, 30);
+});
+test('shared dose logs require an assigned recipient and deduct from one common balance', () => {
+ const med = sharedMedication(); const now = new Date().toISOString();
+ assert.throws(() => logDose(med, 1, now), /Choose who/);
+ assert.throws(() => logDose(med, 1, now, '', true, 'other'), /Choose who/);
+ const first = logDose(med, 1, now, 'Evening', true, 'person');
+ const second = logDose(first, 3, now, '', true, 'pet');
+ assert.equal(second.unitsLeft, 56); assert.equal(second.logs[0].profileId, 'person'); assert.equal(second.logs[1].profileId, 'pet');
+ assert.equal(undoDose(second, second.logs[0].id).unitsLeft, 57);
+ assert.deepEqual(second.regimens, med.regimens);
+ const noStock = logDose(second, 1, now, '', false, 'person'); assert.equal(noStock.unitsLeft, 56);
+ const state = sharedBoard(); state.medications = [noStock]; assert.doesNotThrow(() => parseBoard(state));
+});
+test('shared medication validation rejects duplicate, unknown, empty and inconsistent assignments', () => {
+ for (const mutate of [
+  med => med.regimens.push({ ...med.regimens[0] }),
+  med => med.regimens[1].profileId = 'unknown',
+  med => med.regimens = [],
+  med => med.regimens[1].unitsPerDose = -1,
+  med => med.regimens[1].dosesPerDay = .5,
+  med => med.regimens[0].unitsPerDose = 9
+ ]) { const state = sharedBoard(); mutate(state.medications[0]); assert.throws(() => parseBoard(state)); }
+});
+test('shared medication background blends the assigned profile colours', () => {
+ const state = sharedBoard(); assert.equal(medicationBackground(state.medications[0], state.profiles), 'linear-gradient(135deg, #98cd66, #f48fab)');
+ assert.equal(medicationBackground(medication(), state.profiles), '#98cd66');
 });

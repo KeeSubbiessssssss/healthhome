@@ -3,9 +3,10 @@ export type Task = { id: string; text: string; done: boolean; assigneeId: string
 export type TaskList = { id: string; title: string; color: string; items: Task[] };
 export type GiftProductLink = { label: string; url: string };
 export type Gift = { id: string; recipientId: string; occasion: "birthday" | "christmas"; occasions?: ("birthday" | "christmas")[]; year: number; name: string; cost: number | null; productUrl?: string; productLinks?: GiftProductLink[]; status: "idea" | "requested" | "bought" | "wrapped"; notes: string };
-export type DoseLog = { id: string; occurredAt: string; units: number; note: string; reversed: boolean; tracksStock?: boolean };
+export type DoseLog = { id: string; occurredAt: string; units: number; note: string; reversed: boolean; tracksStock?: boolean; profileId?: string };
 export type StockChange = { id: string; occurredAt: string; action: "consume" | "replenish" | "correct" | "repeat"; before: number; after: number; note: string };
-export type Medication = { id: string; profileId: string; name: string; strength: string; instructions: string; doseTiming?: string; stockChanges?: StockChange[]; expiresOn?: string; unit: string; unitsLeft: number; unitsPerDose: number; dosesPerDay: number; refillAt: number; unitsPerRefill: number; repeats: number; logs: DoseLog[]; archived: boolean };
+export type MedicationRegimen = { profileId: string; unitsPerDose: number; dosesPerDay: number; doseTiming: string; instructions: string };
+export type Medication = { id: string; profileId: string; regimens?: MedicationRegimen[]; name: string; strength: string; instructions: string; doseTiming?: string; stockChanges?: StockChange[]; expiresOn?: string; unit: string; unitsLeft: number; unitsPerDose: number; dosesPerDay: number; refillAt: number; unitsPerRefill: number; repeats: number; logs: DoseLog[]; archived: boolean };
 export type Fastener = { variant: number; offset: number; angle: number; size: number };
 export type NotePlacement = { fastener?: Fastener; x: number; y: number; angle: number; z: number; attachment: "pin" | "tape" | "loose" };
 export type BoardState = { schemaVersion: 1; profiles: Profile[]; lists: TaskList[]; gifts: Gift[]; medications: Medication[]; order: string[]; cardColors?: Record<string, string>; noteLayout?: Record<string, NotePlacement>; removedNotes?: string[] };
@@ -15,6 +16,14 @@ export const newId = () => crypto.randomUUID();
 export const occasionsForGift = (gift: Gift) => gift.occasions ?? [gift.occasion];
 export const linksForGift = (gift: Gift): GiftProductLink[] => gift.productLinks ?? (gift.productUrl ? [{ label: "View product", url: gift.productUrl }] : []);
 export const giftIsBought = (gift: Gift) => gift.status === "bought" || gift.status === "wrapped";
+
+export const medicationRegimens = (medication: Pick<Medication, "regimens" | "profileId" | "unitsPerDose" | "dosesPerDay" | "doseTiming" | "instructions">): MedicationRegimen[] => medication.regimens ?? [{ profileId: medication.profileId, unitsPerDose: medication.unitsPerDose, dosesPerDay: medication.dosesPerDay, doseTiming: medication.doseTiming || "", instructions: medication.instructions }];
+export const medicationHasProfile = (medication: Medication, profileId: string) => medicationRegimens(medication).some(r => r.profileId === profileId);
+const paperColors: Record<string, string> = { cream: "#fffdf4", butter: "#ffce32", sage: "#98cd66", rose: "#f48fab", blue: "#70b9f4", peach: "#ffb06e", mint: "#62d9b2", lavender: "#b69af4", lilac: "#dc8bdf", coral: "#ff8d76", lemon: "#f9e448", teal: "#54c8c3", sand: "#e8be75", terracotta: "#e69b70", periwinkle: "#94a1f4" };
+export function medicationBackground(medication: Medication, profiles: Profile[]) {
+  const assigned = medicationRegimens(medication).map(r => paperColors[profiles.find(p => p.id === r.profileId)?.color || "cream"] || paperColors.cream);
+  return assigned.length > 1 ? `linear-gradient(135deg, ${assigned.join(", ")})` : assigned[0];
+}
 
 export function productLink(value: string): string {
   const link = value.trim();
@@ -47,8 +56,13 @@ export function parseBoard(value: unknown): BoardState {
   for (const gift of board.gifts) { id(gift.id); check(profile(gift.recipientId) && text(gift.name, true) && text(gift.notes) && (gift.productUrl === undefined || (text(gift.productUrl) && productLink(gift.productUrl) === gift.productUrl)) && (gift.productLinks === undefined || (Array.isArray(gift.productLinks) && gift.productLinks.length <= 20 && gift.productLinks.every(link => !!link && text(link.label) && link.label.length <= 200 && text(link.url, true) && productLink(link.url) === link.url))) && ["birthday", "christmas"].includes(gift.occasion) && ["idea", "requested", "bought", "wrapped"].includes(gift.status) && (gift.occasions === undefined || (Array.isArray(gift.occasions) && gift.occasions.length > 0 && gift.occasions.length <= 2 && new Set(gift.occasions).size === gift.occasions.length && gift.occasions.every(o => ["birthday", "christmas"].includes(o)) && gift.occasions.includes(gift.occasion))) && Number.isInteger(gift.year) && gift.year >= 2000 && gift.year <= 2200 && (gift.cost === null || number(gift.cost))); }
   for (const m of board.medications) {
     id(m.id); check(profile(m.profileId, true) && text(m.name, true) && text(m.strength) && text(m.instructions) && (m.doseTiming === undefined || text(m.doseTiming)) && (m.expiresOn === undefined || date(m.expiresOn)) && text(m.unit, true) && [m.unitsLeft, m.unitsPerDose, m.dosesPerDay, m.refillAt, m.unitsPerRefill, m.repeats].every(number) && Number.isInteger(m.repeats) && Number.isInteger(m.dosesPerDay) && typeof m.archived === "boolean" && Array.isArray(m.logs));
+    if (m.regimens !== undefined) {
+      check(Array.isArray(m.regimens) && m.regimens.length > 0 && m.regimens.length <= 100 && new Set(m.regimens.map(r => r?.profileId)).size === m.regimens.length);
+      for (const r of m.regimens) check(!!r && profile(r.profileId) && number(r.unitsPerDose) && r.unitsPerDose > 0 && number(r.dosesPerDay) && Number.isInteger(r.dosesPerDay) && text(r.doseTiming) && text(r.instructions));
+      check(m.profileId === m.regimens[0].profileId && m.unitsPerDose === m.regimens[0].unitsPerDose && m.dosesPerDay === m.regimens[0].dosesPerDay && m.instructions === m.regimens[0].instructions && (m.doseTiming || "") === m.regimens[0].doseTiming);
+    }
     if (m.stockChanges !== undefined) { check(Array.isArray(m.stockChanges) && m.stockChanges.length <= 2000); for (const change of m.stockChanges) { id(change.id); check(["consume", "replenish", "correct", "repeat"].includes(change.action) && number(change.before) && number(change.after) && text(change.note) && typeof change.occurredAt === "string" && !Number.isNaN(Date.parse(change.occurredAt))); } }
-    for (const log of m.logs) { id(log.id); check(number(log.units) && log.units > 0 && typeof log.occurredAt === "string" && !Number.isNaN(Date.parse(log.occurredAt)) && text(log.note) && typeof log.reversed === "boolean" && (log.tracksStock === undefined || typeof log.tracksStock === "boolean")); }
+    for (const log of m.logs) { id(log.id); check(number(log.units) && log.units > 0 && typeof log.occurredAt === "string" && !Number.isNaN(Date.parse(log.occurredAt)) && text(log.note) && typeof log.reversed === "boolean" && (log.tracksStock === undefined || typeof log.tracksStock === "boolean") && (log.profileId === undefined || text(log.profileId))); }
   }
   const cards = new Set(["welcome", "medications", "gifts", ...board.lists.map(l => l.id)]);
   if (board.cardColors !== undefined) {
@@ -64,11 +78,14 @@ export function parseBoard(value: unknown): BoardState {
   return board;
 }
 
-export function logDose(medication: Medication, units: number, occurredAt: string, note = "", tracksStock = true): Medication {
+export function logDose(medication: Medication, units: number, occurredAt: string, note = "", tracksStock = true, profileId?: string): Medication {
+  const regimens = medicationRegimens(medication);
+  const recipient = profileId ?? (regimens.length === 1 ? regimens[0].profileId : undefined);
+  if (recipient === undefined || !regimens.some(r => r.profileId === recipient)) throw new Error("Choose who received this dose.");
   if (!Number.isFinite(units) || units <= 0) throw new Error("Enter a dose greater than zero.");
   if (tracksStock && units > medication.unitsLeft) throw new Error("There isn’t enough medication left for that dose. Check the supply first.");
   if (Number.isNaN(Date.parse(occurredAt)) || Date.parse(occurredAt) > Date.now() + 60_000) throw new Error("Choose a dose time that isn’t in the future.");
-  return { ...medication, unitsLeft: tracksStock ? Math.round((medication.unitsLeft - units) * 10000) / 10000 : medication.unitsLeft, logs: [...medication.logs, { id: newId(), units, occurredAt, note, reversed: false, tracksStock }] };
+  return { ...medication, unitsLeft: tracksStock ? Math.round((medication.unitsLeft - units) * 10000) / 10000 : medication.unitsLeft, logs: [...medication.logs, { id: newId(), units, occurredAt, note, reversed: false, tracksStock, profileId: recipient }] };
 }
 export function undoDose(medication: Medication, logId: string): Medication {
   const log = medication.logs.find(l => l.id === logId);
@@ -92,8 +109,8 @@ export function dailyDoseLabel(medication: Pick<Medication, "strength" | "unit" 
   const dose = totalDailyDose(medication);
   return dose ? `${dose.amount}${dose.unit ? ` ${dose.unit}` : ""} daily` : "Daily dose not set";
 }
-export function medicationSupplyStatus(medication: Pick<Medication, "unitsLeft" | "unitsPerDose" | "dosesPerDay" | "repeats" | "refillAt">) {
-  const dailyUnits = medication.unitsPerDose * medication.dosesPerDay;
+export function medicationSupplyStatus(medication: Pick<Medication, "unitsLeft" | "unitsPerDose" | "dosesPerDay" | "repeats" | "refillAt"> & { regimens?: MedicationRegimen[] }) {
+  const dailyUnits = medication.regimens ? medication.regimens.reduce((sum, r) => sum + r.unitsPerDose * r.dosesPerDay, 0) : medication.unitsPerDose * medication.dosesPerDay;
   const daysLeft = medication.unitsLeft === 0 ? 0 : dailyUnits > 0 ? medication.unitsLeft / dailyUnits : null;
   const kind = medication.repeats === 0 && daysLeft !== null && daysLeft <= 12
     ? "prescription" : medication.unitsLeft <= medication.refillAt ? "low" : null;
