@@ -507,7 +507,7 @@
 
 /* Mobile keeps the same scrapbook, with reading and arranging as separate gestures. */
 .mobileHeader, .mobileNav, .boardModeToggle { display: none; }
-.mobileMenu { border: 0; padding: 0; width: min(440px, calc(100% - 24px)); max-height: calc(100dvh - 32px); border-radius: 4px 4px 18px 4px; background: #fffdf4; color: #25274d; box-shadow: 4px 18px 50px #111c3c55; }
+.mobileMenu { margin: auto; border: 0; padding: 0; width: min(440px, calc(100% - 24px)); max-height: calc(100dvh - 32px); border-radius: 4px 4px 18px 4px; background: #fffdf4; color: #25274d; box-shadow: 4px 18px 50px #111c3c55; }
 .mobileMenu::backdrop { background: #17194699; }
 .mobileMenuContents { padding: 20px; }
 .mobileMenuContents > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
