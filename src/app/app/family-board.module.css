@@ -357,3 +357,29 @@
 .dailyDose { display: flex; flex-direction: column; gap: 6px; margin: 18px 0 12px; }
 .dailyDose strong { font: 400 clamp(32px, 3vw, 44px)/1.1 var(--font-handwriting), cursive; color: #2d2b68; overflow-wrap: anywhere; }
 .dailyDose span { font-size: 11px; }
+
+/* Medication cards keep daily strength prominent in a compact, easy-to-scan layout. */
+.medicationGrid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); align-items: start; gap: 18px; }
+.medicationCard { padding: 18px; }
+.medicationCard h2 { font-size: 26px; margin: 10px 0 4px; }
+.medicationCard .dailyDose { gap: 3px; margin: 8px 0; }
+.medicationCard .dailyDose strong { font-size: 32px; }
+.medicationCard .medStrength { font-size: 11px; }
+.medicationDirections { gap: 10px 14px; margin: 14px 0; }
+.medicationDirections dt { margin-bottom: 3px; }
+.medicationDirections dd { font-size: 13px; }
+.medicationCard .instructions { font-size: 12px; line-height: 1.5; margin: 10px 0; }
+.medInventory { margin: 14px 0 10px; padding-top: 10px; }
+.inventoryHeading { gap: 8px; }
+.inventoryHeading h3 { font-size: 22px; }
+.inventoryHeading button { min-height: 36px; padding: 8px 10px; font-size: 11px; }
+.medicationCard .supply { gap: 12px 20px; margin: 10px 0 4px; padding: 10px 0; }
+.medicationCard .supply dd { margin-top: 4px; font-size: 22px; }
+.stockHistory { margin-top: 2px; font-size: 11px; }
+.stockHistory summary { padding-block: 6px; }
+.medicationCard .lastDose, .medicationCard .lowStock { margin: 8px 0; line-height: 1.5; }
+.medActions { margin-top: 10px; }
+.medActions .primary { min-height: 36px; padding: 8px 12px; }
+.medicationCard .noteFooter { margin-top: 8px; gap: 8px; }
+.medicationCard .doseHistory { margin-top: 10px; }
+.medicationCard .doseHistory li { padding-block: 8px; }
