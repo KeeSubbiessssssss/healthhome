@@ -719,3 +719,26 @@
 .dropPickControl > .settingsGroup { margin-bottom: 0; }
 
 .dropPickPerson { display: inline-flex; align-items: center; gap: 4px; }
+
+.todayDropPick { font-size: 13px; line-height: 1.5; }
+.todayDate { margin: 0 0 12px; font: 24px var(--font-handwriting), cursive; }
+.todayDropPick > ul { list-style: none; padding: 0; margin: 0; }
+.todayDropPick > ul > li { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-top: 1px dashed #292c2640; }
+.todayPeople, .todayPeople > span { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+.todayPeople { gap: 5px 10px; }
+.todayDropPick small { font-size: 12px; }
+.todayActions { display: flex; flex-wrap: wrap; gap: 0 14px; }
+.todayActions button { min-height: 44px; font-size: 12px; }
+.skippedDropPick > span { text-decoration: line-through; }
+.todayEditor { padding-top: 16px; border-top: 1px dashed #292c2640; }
+.todayEditor h3 { margin: 0; font: 26px var(--font-handwriting), cursive; }
+.todayEditor > p { font-size: 12px; margin: 8px 0 16px; }
+.todayEditor .formFields { grid-template-columns: 1fr; }
+.todayEditor .field input, .todayEditor .field select { font-size: 16px; min-height: 46px; }
+.todayEditor .activityChoices label { min-height: 44px; }
+.todayEditor .formActions { flex-wrap: wrap; gap: 8px; }
+
+.todayDropPick { max-height: 560px; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; scrollbar-width: thin; }
+@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) {
+  .canvasWorkstation[data-reading=true] .todayDropPick { max-height: none; overflow: visible; }
+}

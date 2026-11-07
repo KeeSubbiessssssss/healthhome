@@ -9,11 +9,12 @@ export type MedicationRegimen = { profileId: string; unitsPerDose: number; doses
 export type Medication = { id: string; profileId: string; regimens?: MedicationRegimen[]; name: string; strength: string; instructions: string; doseTiming?: string; stockChanges?: StockChange[]; expiresOn?: string; unit: string; unitsLeft: number; unitsPerDose: number; dosesPerDay: number; refillAt: number; unitsPerRefill: number; repeats: number; logs: DoseLog[]; archived: boolean };
 export type DropPick = { id: string; profileId: string; profileIds?: string[]; note: string; byProfileId: string; transport?: "bus"; weekdays: number[] };
 export type WeeklyActivity = { id: string; title: string; profileIds: string[]; weekdays: number[]; startTime: string; endTime: string; color: string };
-export type SummaryKind = "medications" | "gifts" | "tasks-summary" | "schedule";
+export type DropPickOverride = { id: string; entryId: string; date: string; replacement: DropPick | null };
+export type SummaryKind = "medications" | "gifts" | "tasks-summary" | "schedule" | "drop-pick";
 export type SummaryPreferences = { pinned: boolean; fields: string[]; profileId: string };
 export type Fastener = { variant: number; offset: number; angle: number; size: number };
 export type NotePlacement = { width?: number; height?: number; fastener?: Fastener; x: number; y: number; angle: number; z: number; attachment: "pin" | "tape" | "loose" };
-export type BoardState = { schemaVersion: 1; dropPick?: DropPick[]; activities?: WeeklyActivity[]; summaries?: Partial<Record<SummaryKind, SummaryPreferences>>; profiles: Profile[]; lists: TaskList[]; gifts: Gift[]; medications: Medication[]; order: string[]; cardColors?: Record<string, string>; noteLayout?: Record<string, NotePlacement>; removedNotes?: string[] };
+export type BoardState = { schemaVersion: 1; dropPick?: DropPick[]; dropPickOverrides?: DropPickOverride[]; activities?: WeeklyActivity[]; summaries?: Partial<Record<SummaryKind, SummaryPreferences>>; profiles: Profile[]; lists: TaskList[]; gifts: Gift[]; medications: Medication[]; order: string[]; cardColors?: Record<string, string>; noteLayout?: Record<string, NotePlacement>; removedNotes?: string[] };
 export const colors = ["butter", "sage", "rose", "blue", "cream", "peach", "mint", "lavender", "lilac", "coral", "lemon", "teal", "sand", "terracotta", "periwinkle"] as const;
 export const emptyBoard = (): BoardState => ({ schemaVersion: 1, profiles: [], lists: [], gifts: [], medications: [], order: ["welcome", "medications", "gifts"] });
 export const dropPickProfileIds = (entry: DropPick): string[] => entry.profileIds ?? [entry.profileId];
@@ -70,12 +71,22 @@ export function parseBoard(value: unknown): BoardState {
     if (m.stockChanges !== undefined) { check(Array.isArray(m.stockChanges) && m.stockChanges.length <= 2000); for (const change of m.stockChanges) { id(change.id); check(["consume", "replenish", "correct", "repeat"].includes(change.action) && number(change.before) && number(change.after) && text(change.note) && typeof change.occurredAt === "string" && !Number.isNaN(Date.parse(change.occurredAt))); } }
     for (const log of m.logs) { id(log.id); check(number(log.units) && log.units > 0 && typeof log.occurredAt === "string" && !Number.isNaN(Date.parse(log.occurredAt)) && text(log.note) && typeof log.reversed === "boolean" && (log.tracksStock === undefined || typeof log.tracksStock === "boolean") && (log.profileId === undefined || text(log.profileId))); }
   }
+  const person = (id: string) => board.profiles.some(p => p.id === id && p.kind === "person");
+  const checkDropPick = (entry: DropPick) => {
+    check(!!entry && person(entry.profileId) && (entry.byProfileId === "" || person(entry.byProfileId)) && (entry.transport === undefined || (entry.transport === "bus" && entry.byProfileId === "")) && (entry.profileIds === undefined || (Array.isArray(entry.profileIds) && entry.profileIds.length > 0 && entry.profileIds.length <= 100 && new Set(entry.profileIds).size === entry.profileIds.length && entry.profileIds.every(person) && entry.profileId === entry.profileIds[0])) && text(entry.note, true) && entry.note.length <= 200 && Array.isArray(entry.weekdays) && entry.weekdays.length > 0 && entry.weekdays.length <= 5 && new Set(entry.weekdays).size === entry.weekdays.length && entry.weekdays.every(d => Number.isInteger(d) && d >= 0 && d <= 4));
+  };
   if (board.dropPick !== undefined) {
     check(Array.isArray(board.dropPick) && board.dropPick.length <= 500);
-    const person = (id: string) => board.profiles.some(p => p.id === id && p.kind === "person");
-    for (const entry of board.dropPick) {
-      id(entry.id);
-      check(person(entry.profileId) && (entry.byProfileId === "" || person(entry.byProfileId)) && (entry.transport === undefined || (entry.transport === "bus" && entry.byProfileId === "")) && (entry.profileIds === undefined || (Array.isArray(entry.profileIds) && entry.profileIds.length > 0 && entry.profileIds.length <= 100 && new Set(entry.profileIds).size === entry.profileIds.length && entry.profileIds.every(person) && entry.profileId === entry.profileIds[0])) && text(entry.note, true) && entry.note.length <= 200 && Array.isArray(entry.weekdays) && entry.weekdays.length > 0 && entry.weekdays.length <= 5 && new Set(entry.weekdays).size === entry.weekdays.length && entry.weekdays.every(d => Number.isInteger(d) && d >= 0 && d <= 4));
+    for (const entry of board.dropPick) { id(entry.id); checkDropPick(entry); }
+  }
+  if (board.dropPickOverrides !== undefined) {
+    check(Array.isArray(board.dropPickOverrides) && board.dropPickOverrides.length <= 2000);
+    const dates = new Set<string>();
+    for (const override of board.dropPickOverrides) {
+      id(override.id);
+      check(!!board.dropPick?.some(entry => entry.id === override.entryId) && typeof override.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(override.date) && !Number.isNaN(Date.parse(override.date)) && new Date(override.date + "T12:00:00Z").toISOString().slice(0, 10) === override.date && !dates.has(`${override.entryId}:${override.date}`));
+      dates.add(`${override.entryId}:${override.date}`);
+      if (override.replacement !== null) { check(!!override.replacement && override.replacement.id === override.entryId); checkDropPick(override.replacement); }
     }
   }
   if (board.activities !== undefined) {
@@ -88,9 +99,9 @@ export function parseBoard(value: unknown): BoardState {
     check(!!board.summaries && typeof board.summaries === "object" && !Array.isArray(board.summaries));
     for (const [kind, prefs] of Object.entries(board.summaries)) check(Object.hasOwn(summaryOptions, kind) && !!prefs && typeof prefs.pinned === "boolean" && profile(prefs.profileId, true) && Array.isArray(prefs.fields) && prefs.fields.length > 0 && new Set(prefs.fields).size === prefs.fields.length && prefs.fields.every(f => summaryOptions[kind as SummaryKind].fields.some(option => option.id === f)));
   }
-  check(board.lists.every(list => !["welcome", "medications", "gifts", "schedule", "tasks-summary"].includes(list.id)));
-  const cards = new Set(["welcome", "medications", "gifts", ...board.lists.map(l => l.id), ...board.order.filter(id => id === "schedule" || id === "tasks-summary")]);
-  if (board.summaries) for (const kind of ["schedule", "tasks-summary"] as const) if (board.summaries[kind]?.pinned) check(cards.has(kind));
+  check(board.lists.every(list => !["welcome", "medications", "gifts", "schedule", "tasks-summary", "drop-pick"].includes(list.id)));
+  const cards = new Set(["welcome", "medications", "gifts", ...board.lists.map(l => l.id), ...board.order.filter(id => id === "schedule" || id === "tasks-summary" || id === "drop-pick")]);
+  if (board.summaries) for (const kind of ["schedule", "tasks-summary", "drop-pick"] as const) if (board.summaries[kind]?.pinned) check(cards.has(kind));
   if (board.cardColors !== undefined) {
     check(!!board.cardColors && typeof board.cardColors === "object" && !Array.isArray(board.cardColors));
     check(Object.entries(board.cardColors).every(([id, color]) => cards.has(id) && colors.includes(color as typeof colors[number])));
@@ -187,10 +198,11 @@ export const summaryOptions: Record<SummaryKind, { title: string; fields: { id: 
   medications: { title: "Medication", fields: [{ id: "totals", label: "Medication and family totals" }, { id: "doses", label: "Daily doses for each person" }, { id: "refills", label: "New prescriptions needed" }, { id: "low", label: "Low stock reminders" }, { id: "supply", label: "Supply remaining" }] },
   gifts: { title: "Presents", fields: [{ id: "totals", label: "Ideas, requested, bought and ready totals" }, { id: "spend", label: "Total planned spend" }, { id: "occasions", label: "Birthday and Christmas totals" }, { id: "ideas", label: "Recent gift ideas" }] },
   "tasks-summary": { title: "Lists & tasks", fields: [{ id: "totals", label: "Open and completed totals" }, { id: "due", label: "Due today and overdue tasks" }, { id: "upcoming", label: "Next tasks with due dates" }] },
+  "drop-pick": { title: "Today’s Drop/Pick", fields: [{ id: "arrangements", label: "Today’s arrangements and one-off changes" }] },
   schedule: { title: "Weekly schedule", fields: [{ id: "totals", label: "This week’s activity count" }, { id: "week", label: "Activities grouped by day" }, { id: "today", label: "Today’s activities" }, { id: "people", label: "Family member names" }] },
 };
 export function summaryPreferences(board: BoardState, kind: SummaryKind): SummaryPreferences {
-  return board.summaries?.[kind] || { pinned: kind === "medications" || kind === "gifts", profileId: "", fields: kind === "schedule" ? ["week", "people"] : kind === "medications" ? ["totals", "refills", "low"] : ["totals", kind === "gifts" ? "spend" : "due"] };
+  return board.summaries?.[kind] || { pinned: kind === "medications" || kind === "gifts" || kind === "drop-pick", profileId: "", fields: kind === "drop-pick" ? ["arrangements"] : kind === "schedule" ? ["week", "people"] : kind === "medications" ? ["totals", "refills", "low"] : ["totals", kind === "gifts" ? "spend" : "due"] };
 }
 export function setSummaryPreferences(board: BoardState, kind: SummaryKind, preferences: SummaryPreferences) {
   board.summaries = { ...board.summaries, [kind]: preferences };
@@ -210,3 +222,18 @@ export function weeklyAgenda(activities: WeeklyActivity[], now = new Date(), off
   return weekDates(now, offset).map((date, weekday) => ({ date, weekday, activities: activities.filter(activity => activity.weekdays.includes(weekday) && (!profileId || activity.profileIds.length === 0 || activity.profileIds.includes(profileId))).sort((a, b) => a.startTime.localeCompare(b.startTime) || a.title.localeCompare(b.title)) })).filter(day => day.activities.length > 0);
 }
 export function summaryMedicationList(board: BoardState, profileId = "") { return board.medications.filter(m => !m.archived && (!profileId || medicationHasProfile(m, profileId))); }
+
+export function dailyDropPick(board: BoardState, date: string, profileId = "") {
+  const weekday = (new Date(date + "T12:00:00Z").getUTCDay() + 6) % 7;
+  return (board.dropPick || []).flatMap(source => {
+    const override = board.dropPickOverrides?.find(item => item.entryId === source.id && item.date === date);
+    if (!source.weekdays.includes(weekday) && !override) return [];
+    const entry = override?.replacement ?? source;
+    if (profileId && !dropPickProfileIds(entry).includes(profileId) && entry.byProfileId !== profileId) return [];
+    return [{ source, entry, skipped: override?.replacement === null, changed: !!override }];
+  });
+}
+export function setDropPickOverride(board: BoardState, entryId: string, date: string, replacement: DropPick | null) {
+  const previous = board.dropPickOverrides?.find(item => item.entryId === entryId && item.date === date);
+  board.dropPickOverrides = [...(board.dropPickOverrides || []).filter(item => item.entryId !== entryId || item.date !== date), { id: previous?.id || newId(), entryId, date, replacement }];
+}

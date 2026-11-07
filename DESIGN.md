@@ -49,3 +49,7 @@ Phones use the blueberry brand bar and five thumb-reachable paper tabs; More ope
 The phone pinboard opens as a full-width, vertically scrollable stack of readable notes. Arrange switches to the saved free canvas at readable scale, preserving all desktop positions, sizes, angles and fasteners; returning to reading never writes layout. Touch movement starts only on the grip, with body swipes reserved for scrolling. Rotation and resizing remain available in Arrange. Summary schedules scroll within their paper.
 
 Full weekly schedules flow down the phone screen, keeping all seven weekdays and side-by-side overlaps. Desktop day columns have equal widths independent of overlap count. Overlapping activities use a shared minutes-to-pixels scale within each active group: their starts, ends and overlap portions stay proportional; measured content establishes the minimum readable scale. No empty hourly grid is introduced.
+
+## Today’s Drop/Pick
+
+A separate lemon-paper note leads the phone pinboard and is pinned by default. It shows only the current Sydney day’s Drop/Pick arrangements, supports grouped family names and Bus transport, and refreshes its day at midnight or when the tab becomes visible. Change today and Skip today save dated exceptions; Use weekly plan removes that date’s exception. Weekly entries are never edited by these actions. The note shares the existing summary visibility/profile filter, colour, free movement and automatic fasteners. Old snapshots remain valid without daily-note metadata or dated exceptions.
